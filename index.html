@@ -1,0 +1,3106 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manikin Service System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0A2342;--blue:#1565C0;--blue-m:#1976D2;--blue-l:#E3F2FD;--blue-p:#F0F7FF;
+  --green:#2E7D32;--green-l:#E8F5E9;--red:#C62828;--red-l:#FFEBEE;
+  --amber:#E65100;--amber-l:#FFF3E0;--purple:#6A1B9A;--teal:#00695C;
+  --g50:#FAFAFA;--g100:#F5F5F5;--g200:#EEEEEE;--g300:#E0E0E0;
+  --g400:#BDBDBD;--g500:#9E9E9E;--g700:#616161;--g900:#212121;--white:#fff;
+  --shadow:0 1px 4px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+  --shadow-md:0 4px 16px rgba(0,0,0,.12);--r:10px;--rs:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun',sans-serif;background:#EEF2F7;color:var(--g900);min-height:100vh}
+
+/* ── SETUP OVERLAY ─────────────────────────────────────────── */
+#setup-overlay{position:fixed;inset:0;background:rgba(10,35,66,.92);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px}
+#setup-box{background:#fff;border-radius:16px;width:100%;max-width:540px;overflow:hidden;box-shadow:0 24px 48px rgba(0,0,0,.3)}
+.setup-hdr{background:var(--navy);padding:20px 24px;display:flex;align-items:center;gap:12px}
+.setup-hdr h2{color:#fff;font-size:16px;font-weight:700}
+.setup-hdr p{color:#90CAF9;font-size:12px;margin-top:2px}
+.setup-body{padding:24px}
+.step{display:none}.step.active{display:block}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-right:8px;flex-shrink:0}
+.step-title{font-size:15px;font-weight:700;color:var(--g900);display:flex;align-items:center;margin-bottom:14px}
+.instruction{background:var(--g50);border:1px solid var(--g200);border-radius:var(--rs);padding:14px;margin-bottom:14px;font-size:13px;line-height:1.8;color:var(--g700)}
+.instruction ol{padding-left:18px}
+.instruction li{margin-bottom:4px}
+.instruction code{background:var(--navy);color:#90CAF9;padding:2px 6px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:11px}
+.url-input{width:100%;height:40px;border:1.5px solid var(--g300);border-radius:var(--rs);font-size:13px;padding:0 12px;font-family:'Sarabun',sans-serif;color:var(--g900);background:var(--white);transition:border-color .15s}
+.url-input:focus{outline:none;border-color:var(--blue-m)}
+.url-input.error{border-color:var(--red)}
+.url-input.ok{border-color:var(--green)}
+.err-msg{font-size:12px;color:var(--red);margin-top:6px;display:none}
+.step-btns{display:flex;gap:10px;margin-top:18px;justify-content:flex-end}
+.btn{height:38px;padding:0 18px;border-radius:var(--rs);border:none;font-size:13px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s}
+.btn-primary{background:var(--navy);color:#fff}.btn-primary:hover{background:#0D2D4F}
+.btn-secondary{background:var(--g100);color:var(--g700);border:1px solid var(--g300)}.btn-secondary:hover{background:var(--g200)}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#1B5E20}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.test-status{font-size:12px;margin-top:8px;padding:8px 12px;border-radius:var(--rs);display:none}
+.test-status.ok{background:var(--green-l);color:var(--green);display:block}
+.test-status.fail{background:var(--red-l);color:var(--red);display:block}
+.test-status.loading{background:var(--blue-l);color:var(--blue);display:block}
+.setup-skip{text-align:center;margin-top:12px;font-size:12px;color:var(--g500)}
+.setup-skip a{color:var(--blue);cursor:pointer;text-decoration:underline}
+
+/* ── NAV ──────────────────────────────────────────────────── */
+.nav{background:var(--navy);padding:0 20px;display:flex;align-items:center;gap:0;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.nav-logo{display:flex;align-items:center;gap:10px;padding:13px 20px 13px 0;margin-right:16px;border-right:1px solid rgba(255,255,255,.15)}
+.nav-logo-icon{width:32px;height:32px;background:rgba(255,255,255,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.nav-logo-text{font-size:13px;font-weight:700;color:#fff;line-height:1.2}
+.nav-logo-sub{font-size:10px;color:#90CAF9;font-weight:400}
+.nav-tabs{display:flex;flex:1}
+.nav-tab{padding:0 16px;height:54px;display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:rgba(255,255,255,.6);cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;white-space:nowrap}
+.nav-tab:hover{color:#fff;background:rgba(255,255,255,.07)}
+.nav-tab.active{color:#fff;border-bottom-color:#42A5F5}
+.nav-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.nav-btn{height:32px;padding:0 12px;border-radius:var(--rs);border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:12px;font-weight:500;cursor:pointer;font-family:'Sarabun',sans-serif;transition:all .15s;display:flex;align-items:center;gap:5px}
+.nav-btn:hover{background:rgba(255,255,255,.2)}
+.nav-btn.green{background:#1B5E20;border-color:#2E7D32}
+.nav-btn.green:hover{background:#2E7D32}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#4CAF50;display:inline-block}
+.sync-dot.syncing{animation:spin 1s linear infinite;background:transparent;border:2px solid #4CAF50;border-top-color:transparent;border-radius:50%}
+.sync-dot.error{background:#F44336}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── PAGES ────────────────────────────────────────────────── */
+.page{display:none;padding:20px;max-width:1120px;margin:0 auto}
+.page.active{display:block}
+
+/* ── DASHBOARD ────────────────────────────────────────────── */
+.dash-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--white);border-radius:var(--r);padding:14px 18px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px}
+.kpi-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.kpi-val{font-size:26px;font-weight:700;line-height:1;color:var(--g900)}
+.kpi-lbl{font-size:11px;color:var(--g500);margin-top:3px}
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.dash-grid.wide{grid-template-columns:2fr 1fr}
+.dash-card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.dash-card-hdr{padding:12px 16px;border-bottom:1px solid var(--g200);display:flex;align-items:center;justify-content:space-between}
+.dash-card-title{font-size:13px;font-weight:700;color:var(--g900)}
+.dash-card-body{padding:14px 16px}
+.chart-container{position:relative;height:190px}
+
+/* ── TABLE ────────────────────────────────────────────────── */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl thead th{text-align:left;padding:8px 10px;background:var(--g50);color:var(--g700);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--g200)}
+.tbl tbody tr{border-bottom:1px solid var(--g100);transition:background .1s}
+.tbl tbody tr:hover{background:var(--g50)}
+.tbl td{padding:8px 10px;color:var(--g900);vertical-align:middle}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-pass{background:var(--green-l);color:var(--green)}
+.badge-fail{background:var(--red-l);color:var(--red)}
+.badge-na{background:var(--g100);color:var(--g700)}
+.badge-done{background:var(--green-l);color:var(--green)}
+.badge-more{background:var(--amber-l);color:var(--amber)}
+.badge-wait{background:var(--blue-l);color:var(--blue)}
+
+/* ── FORM ─────────────────────────────────────────────────── */
+.form-wrap{max-width:700px;margin:0 auto}
+.form-header{background:var(--navy);border-radius:14px;padding:18px 22px;margin-bottom:14px;display:flex;align-items:center;gap:14px}
+.form-header-icon{width:44px;height:44px;background:rgba(255,255,255,.12);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.form-header h1{font-size:16px;font-weight:700;color:#fff;margin-bottom:2px}
+.form-header p{font-size:11px;color:#90CAF9}
+.summary-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.sm{background:var(--white);border-radius:var(--r);padding:11px;text-align:center;box-shadow:var(--shadow)}
+.sm-val{font-size:22px;font-weight:700;color:var(--g900);line-height:1}
+.sm-val.green{color:var(--green)}.sm-val.red{color:var(--red)}
+.sm-lbl{font-size:11px;color:var(--g500);margin-top:3px}
+.prog-wrap{height:4px;background:var(--g200);border-radius:2px;margin-bottom:14px;overflow:hidden}
+.prog-bar{height:100%;background:var(--blue-m);border-radius:2px;transition:width .35s;width:0%}
+.card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:10px;overflow:visible}
+.card-hdr{padding:9px 14px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--g700);background:var(--g50);border-bottom:1px solid var(--g200);display:flex;align-items:center;gap:7px;border-radius:var(--r) var(--r) 0 0}
+.card-hdr .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.card-body{padding:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.full{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;color:var(--g700);font-weight:600}
+.field input,.field select,.field textarea{font-family:'Sarabun',sans-serif;font-size:13px;color:var(--g900);background:var(--g50);border:1px solid var(--g300);border-radius:var(--rs);padding:0 10px;height:36px;transition:border-color .15s,background .15s;width:100%}
+.field textarea{height:72px;padding:8px 10px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--blue-m);background:var(--white)}
+.pfa-row{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--g200);border-radius:var(--rs);margin-bottom:5px;transition:background .15s,border-color .15s}
+.pfa-row.st-pass{background:var(--green-l);border-color:#A5D6A7}
+.pfa-row.st-fail{background:var(--red-l);border-color:#EF9A9A}
+.pfa-row.st-na{background:var(--g100);border-color:var(--g300)}
+.pfa-name{font-size:13px;font-weight:600;color:var(--g900)}
+.pfa-sub{font-size:11px;color:var(--g500);margin-top:1px}
+.pfa-btns{display:flex;gap:4px;margin-left:auto;flex-shrink:0}
+.pb{padding:3px 9px;border-radius:5px;border:1px solid var(--g300);background:var(--white);color:var(--g700);font-size:12px;font-weight:600;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all .12s}
+.pb.p-on{background:var(--green-l);border-color:var(--green);color:var(--green)}
+.pb.f-on{background:var(--red-l);border-color:var(--red);color:var(--red)}
+.pb.n-on{background:var(--g200);border-color:var(--g500);color:var(--g700)}
+.bat-section{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--g200);border-radius:var(--rs);background:var(--white);margin-top:4px}
+.bat-label{font-size:13px;font-weight:600;color:var(--g900);min-width:110px}
+.bat-label span{display:block;font-size:11px;font-weight:400;color:var(--g500)}
+.bat-slider{flex:1;accent-color:var(--blue-m)}
+.bat-pct{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;min-width:36px;text-align:right;color:var(--g900)}
+.bat-visual{width:44px;height:20px;border:2px solid var(--g400);border-radius:3px;padding:2px;position:relative;flex-shrink:0}
+.bat-visual::after{content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%);width:3px;height:7px;background:var(--g400);border-radius:0 2px 2px 0}
+.bat-fill{height:100%;border-radius:1px;transition:width .25s,background .25s}
+.status-row{display:flex;gap:7px;flex-wrap:wrap}
+.stbtn{padding:7px 14px;border-radius:var(--rs);border:1px solid var(--g300);background:var(--white);color:var(--g700);font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;transition:all .12s;font-weight:500}
+.stbtn.s-done{background:var(--green-l);border-color:var(--green);color:var(--green);font-weight:700}
+.stbtn.s-more{background:var(--amber-l);border-color:var(--amber);color:var(--amber);font-weight:700}
+.stbtn.s-wait{background:var(--blue-l);border-color:var(--blue);color:var(--blue);font-weight:700}
+.upload-zone{border:1.5px dashed var(--g300);border-radius:var(--rs);padding:16px;text-align:center;cursor:pointer;transition:all .12s}
+.upload-zone:hover{background:var(--blue-p);border-color:var(--blue-m)}
+.file-list{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.file-item{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--g50);border:1px solid var(--g200);border-radius:var(--rs);font-size:12px}
+.file-item button{background:none;border:none;color:var(--g500);cursor:pointer;font-size:13px;padding:0 3px}
+.cal-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.cal-nav-btn{width:30px;height:30px;border:1px solid var(--g300);border-radius:var(--rs);background:var(--white);cursor:pointer;font-size:15px;color:var(--g700);display:flex;align-items:center;justify-content:center;transition:background .12s}
+.cal-nav-btn:hover{background:var(--g100)}
+.cal-month-lbl{font-size:14px;font-weight:700;color:var(--g900)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-hdr-cell{text-align:center;font-size:11px;font-weight:700;color:var(--g500);padding:3px 0}
+.cal-day{text-align:center;font-size:12px;padding:5px 2px;border-radius:5px;cursor:pointer;color:var(--g900);transition:background .1s}
+.cal-day:hover{background:var(--blue-l)}
+.cal-day.today{background:var(--blue-l);color:var(--blue);font-weight:700}
+.cal-day.selected{background:var(--navy);color:#fff;font-weight:700}
+.cal-day.in-range{background:#BBDEFB;color:#0D47A1;font-weight:500}
+.cal-day.other{color:var(--g300);pointer-events:none}
+.cal-day.has-record{position:relative}
+.cal-day.has-record::after{content:'';position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--blue-m)}
+.cal-day.selected.has-record::after{background:#fff}
+.submit-btn{width:100%;height:46px;background:var(--navy);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:700;font-family:'Sarabun',sans-serif;cursor:pointer;margin-top:6px;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.submit-btn:hover{background:#0D2D4F}
+.submit-btn:disabled{opacity:.6;cursor:not-allowed}
+
+/* ── RECORDS ──────────────────────────────────────────────── */
+.records-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.search-input{height:36px;border:1px solid var(--g300);border-radius:var(--rs);background:var(--white);font-size:13px;padding:0 12px;font-family:'Sarabun',sans-serif;color:var(--g900);min-width:180px;flex:1}
+.search-input:focus{outline:none;border-color:var(--blue-m)}
+.filter-select{height:36px;border:1px solid var(--g300);border-radius:var(--rs);background:var(--white);font-size:13px;padding:0 8px;font-family:'Sarabun',sans-serif;color:var(--g900);cursor:pointer}
+.action-btn{height:36px;padding:0 14px;border-radius:var(--rs);border:1px solid var(--g300);background:var(--white);font-size:13px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;color:var(--g700);display:flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap}
+.action-btn:hover{background:var(--g100);border-color:var(--g500)}
+.action-btn.export{background:var(--green);border-color:var(--green);color:#fff}
+.action-btn.export:hover{background:#1B5E20}
+.action-btn.danger{border-color:var(--red);color:var(--red)}
+.action-btn.danger:hover{background:var(--red-l)}
+.records-table-wrap{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.tbl-wrap{overflow-x:auto}
+.rtbl{width:100%;border-collapse:collapse;font-size:12px;min-width:860px}
+.rtbl thead th{padding:9px 10px;background:var(--g50);color:var(--g700);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--g200);white-space:nowrap;text-align:left;cursor:pointer;user-select:none}
+.rtbl thead th:hover{background:var(--g100)}
+.rtbl thead th.sort-asc::after{content:' ↑'}
+.rtbl thead th.sort-desc::after{content:' ↓'}
+.rtbl tbody tr{border-bottom:1px solid var(--g100);transition:background .1s}
+.rtbl tbody tr:hover{background:var(--g50)}
+.rtbl td{padding:8px 10px;color:var(--g900);vertical-align:middle}
+.empty-state{padding:48px;text-align:center;color:var(--g500)}
+.row-actions{display:flex;gap:3px}
+.row-btn{width:26px;height:26px;border-radius:5px;border:1px solid var(--g200);background:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .12s}
+.row-btn:hover{background:var(--g100);border-color:var(--g400)}
+.row-btn.del:hover{background:var(--red-l);border-color:var(--red)}
+
+/* ── MODAL ────────────────────────────────────────────────── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--white);border-radius:14px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 40px rgba(0,0,0,.2)}
+.modal-hdr{padding:14px 18px;border-bottom:1px solid var(--g200);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--white);border-radius:14px 14px 0 0;z-index:1}
+.modal-title{font-size:14px;font-weight:700;color:var(--g900)}
+.modal-close{width:30px;height:30px;border:none;background:var(--g100);border-radius:6px;cursor:pointer;font-size:16px;color:var(--g700);display:flex;align-items:center;justify-content:center}
+.modal-body{padding:18px}
+.detail-row{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--g100);flex-wrap:wrap}
+.detail-row:last-child{border-bottom:none}
+.detail-lbl{font-size:12px;font-weight:600;color:var(--g500);min-width:130px;flex-shrink:0}
+.detail-val{font-size:13px;color:var(--g900);word-break:break-word}
+
+/* ── TOAST / LOADING ──────────────────────────────────────── */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--g900);color:#fff;padding:10px 16px;border-radius:var(--r);font-size:13px;font-weight:500;z-index:9999;transform:translateY(70px);opacity:0;transition:all .3s;box-shadow:var(--shadow-md)}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{background:var(--green)}
+.toast.error{background:var(--red)}
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.7);z-index:500;align-items:center;justify-content:center}
+.loading-overlay.show{display:flex}
+.spinner{width:40px;height:40px;border:3px solid var(--g200);border-top-color:var(--navy);border-radius:50%;animation:spin 0.8s linear infinite}
+
+@media(max-width:768px){
+  .dash-kpi{grid-template-columns:1fr 1fr}
+  .dash-grid,.dash-grid.wide{grid-template-columns:1fr}
+  .grid2{grid-template-columns:1fr}
+  .page{padding:12px}
+  .nav-tab .tab-text{display:none}
+}
+/* ── MULTI SELECT ─────────────────────────────────────────── */
+.multi-select-wrap{position:relative;z-index:10}
+.multi-select-display{min-height:36px;border:1px solid var(--g300);border-radius:var(--rs);background:var(--g50);padding:4px 30px 4px 10px;font-size:13px;color:var(--g900);cursor:pointer;display:flex;align-items:center;flex-wrap:wrap;gap:4px;transition:border-color .15s;position:relative;user-select:none}
+.multi-select-display:hover{border-color:var(--g500)}
+.multi-select-display.open{border-color:var(--blue-m);background:var(--white)}
+.multi-select-display::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--g500);font-size:12px;pointer-events:none}
+.serial-tag{background:var(--blue-l);color:var(--blue);border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.serial-tag-x{cursor:pointer;font-size:13px;line-height:1;color:var(--blue);font-weight:700}
+.serial-tag-x:hover{color:var(--red)}
+.multi-select-drop{display:none;position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--white);border:1px solid var(--g300);border-radius:var(--rs);box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9999;max-height:220px;overflow-y:auto}
+.multi-select-drop.open{display:block}
+.msd-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;transition:background .1s;font-size:13px;color:var(--g900)}
+.msd-item:hover{background:var(--g50)}
+.msd-item.checked{background:var(--blue-p)}
+.msd-item input[type=checkbox]{accent-color:var(--blue-m);width:15px;height:15px;flex-shrink:0}
+.msd-empty{padding:12px;text-align:center;color:var(--g500);font-size:13px}
+.msd-actions{display:flex;border-top:1px solid var(--g200);padding:6px 8px;gap:6px}
+.msd-action-btn{flex:1;height:28px;border:1px solid var(--g300);border-radius:4px;background:var(--white);font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif;color:var(--g700);transition:background .1s}
+.msd-action-btn:hover{background:var(--g100)}
+
+/* ── EDIT MODAL ───────────────────────────────────────────── */
+.edit-modal{background:var(--white);border-radius:14px;max-width:680px;width:100%;max-height:90vh;overflow-y:auto;overflow-x:visible;box-shadow:0 20px 40px rgba(0,0,0,.25)}
+.edit-modal .modal-hdr{background:var(--navy);border-radius:14px 14px 0 0}
+.edit-modal .modal-title{color:#fff}
+.edit-modal .modal-close{background:rgba(255,255,255,.15);color:#fff}
+.edit-section{margin-bottom:14px}
+.edit-section-title{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--g500);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--g200)}
+.edit-pfa-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--g200);border-radius:var(--rs);margin-bottom:5px}
+.edit-pfa-row.st-pass{background:var(--green-l);border-color:#A5D6A7}
+.edit-pfa-row.st-fail{background:var(--red-l);border-color:#EF9A9A}
+.edit-pfa-row.st-na{background:var(--g100)}
+.edit-save-btn{width:100%;height:42px;background:var(--navy);color:#fff;border:none;border-radius:var(--rs);font-size:14px;font-weight:700;font-family:'Sarabun',sans-serif;cursor:pointer;margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px}
+.edit-save-btn:hover{background:#0D2D4F}
+/* ── POPUP DATE PICKER ────────────────────────────────────── */
+.datepick-trigger{min-height:36px;border:1px solid var(--g300);border-radius:var(--rs);background:var(--g50);padding:6px 12px;font-size:13px;color:var(--g900);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;transition:border-color .15s}
+.datepick-trigger:hover{border-color:var(--g500);background:var(--white)}
+.datepick-trigger.has-value{background:var(--white);border-color:var(--blue-m);color:var(--g900)}
+.dp-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;align-items:center;justify-content:center;padding:16px}
+.dp-overlay.open{display:flex}
+.dp-popup{background:var(--white);border-radius:14px;box-shadow:0 20px 48px rgba(0,0,0,.2);width:100%;max-width:360px;overflow:hidden}
+.dp-header{background:var(--navy);padding:14px 18px;color:#fff}
+.dp-header-title{font-size:14px;font-weight:700;margin-bottom:4px}
+.dp-header-range{font-size:12px;color:#90CAF9;min-height:18px}
+.dp-nav{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 8px}
+.dp-nav-btn{width:30px;height:30px;border:1px solid var(--g200);border-radius:6px;background:var(--white);cursor:pointer;font-size:15px;color:var(--g700);display:flex;align-items:center;justify-content:center;transition:background .1s}
+.dp-nav-btn:hover{background:var(--g100)}
+.dp-month-label{font-size:14px;font-weight:700;color:var(--g900);cursor:pointer;padding:4px 10px;border-radius:6px;transition:background .12s;user-select:none}
+.dp-month-label:hover{background:var(--g100)}
+.dp-popup{background:var(--white);border-radius:14px;box-shadow:0 20px 48px rgba(0,0,0,.2);width:100%;max-width:360px;overflow:hidden;position:relative}
+.dp-picker{display:none;position:absolute;inset:0;background:var(--white);z-index:10;border-radius:14px;padding:14px 16px;overflow-y:auto}
+.dp-picker.open{display:block}
+.dp-picker-title{font-size:12px;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.dp-picker-close{background:none;border:none;cursor:pointer;color:var(--g700);font-size:18px;padding:0 4px}
+.dp-year-nav{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.dp-year-btn{width:32px;height:32px;border:1px solid var(--g200);border-radius:6px;background:var(--white);cursor:pointer;font-size:14px;color:var(--g700);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .1s}
+.dp-year-btn:hover{background:var(--g100)}
+.dp-year-val{font-size:16px;font-weight:700;color:var(--g900);flex:1;text-align:center}
+.dp-months-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.dp-month-btn{padding:9px 4px;border-radius:6px;border:1px solid transparent;background:var(--g50);font-size:12px;font-weight:500;color:var(--g900);cursor:pointer;text-align:center;transition:all .12s;font-family:'Sarabun',sans-serif}
+.dp-month-btn:hover{background:var(--blue-l);border-color:#90CAF9;color:var(--blue)}
+.dp-month-btn.dp-m-active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:0 12px 8px}
+.dp-day-hdr{text-align:center;font-size:11px;font-weight:700;color:var(--g500);padding:4px 0}
+.dp-day{text-align:center;font-size:13px;padding:7px 2px;border-radius:6px;cursor:pointer;color:var(--g900);transition:background .1s;position:relative;user-select:none}
+.dp-day:hover:not(.dp-other):not(.dp-disabled){background:var(--blue-l)}
+.dp-day.dp-other{color:var(--g300);pointer-events:none}
+.dp-day.dp-today{font-weight:700;color:var(--blue)}
+.dp-day.dp-start{background:var(--navy);color:#fff;border-radius:6px 0 0 6px}
+.dp-day.dp-end{background:var(--navy);color:#fff;border-radius:0 6px 6px 0}
+.dp-day.dp-start.dp-end{border-radius:6px}
+.dp-day.dp-in-range{background:#BBDEFB;color:#0D47A1;border-radius:0}
+.dp-day.dp-start.dp-in-range{border-radius:6px 0 0 6px}
+.dp-day.dp-end.dp-in-range{border-radius:0 6px 6px 0}
+.dp-day.dp-hover-range{background:#E3F2FD;border-radius:0}
+.dp-footer{display:flex;gap:8px;padding:10px 16px 14px;border-top:1px solid var(--g200)}
+.dp-footer-btn{flex:1;height:36px;border-radius:var(--rs);border:1px solid var(--g300);font-size:13px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;transition:all .15s}
+.dp-footer-btn.clear{background:var(--white);color:var(--g700)}
+.dp-footer-btn.clear:hover{background:var(--g100)}
+.dp-footer-btn.confirm{background:var(--navy);color:#fff;border-color:var(--navy)}
+.dp-footer-btn.confirm:hover{background:#0D2D4F}
+.dp-footer-btn.confirm:disabled{opacity:.4;cursor:not-allowed}
+.dp-day.dp-multi-sel{background:var(--navy);color:#fff;font-weight:700;border-radius:6px}
+.dp-mode-btn{flex:1;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-size:12px;font-weight:500;cursor:pointer;font-family:'Sarabun',sans-serif;transition:all .15s}
+.dp-mode-btn.active{background:#fff;color:var(--navy);border-color:#fff;font-weight:700}
+.dp-mode-btn:hover:not(.active){background:rgba(255,255,255,.2);color:#fff}
+/* ── SETTINGS ─────────────────────────────────────────────── */
+.set-card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden}
+.set-hdr{padding:10px 16px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--g700);background:var(--g50);border-bottom:1px solid var(--g200);display:flex;align-items:center;gap:8px}
+.set-body{padding:14px 16px}
+.set-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--g200);border-radius:var(--rs);margin-bottom:6px;background:var(--white);transition:border-color .12s}
+.set-item:hover{border-color:var(--g400)}
+.set-item-input{flex:1;border:none;background:transparent;font-size:13px;font-family:'Sarabun',sans-serif;color:var(--g900);outline:none;padding:0}
+.set-item-input:focus{color:var(--blue)}
+.set-item-drag{cursor:grab;color:var(--g400);font-size:16px;flex-shrink:0;user-select:none}
+.set-item-del{width:26px;height:26px;border:none;background:none;cursor:pointer;color:var(--g400);font-size:16px;display:flex;align-items:center;justify-content:center;border-radius:4px;flex-shrink:0;transition:all .12s}
+.set-item-del:hover{background:var(--red-l);color:var(--red)}
+.set-add-btn{width:100%;height:34px;border:1.5px dashed var(--g300);border-radius:var(--rs);background:transparent;color:var(--g500);font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;transition:all .12s;margin-top:4px}
+.set-add-btn:hover{border-color:var(--blue-m);color:var(--blue);background:var(--blue-p)}
+.set-serial-model{font-size:11px;font-weight:700;color:var(--blue);background:var(--blue-l);padding:2px 8px;border-radius:4px;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<!-- ══ SETUP OVERLAY ══════════════════════════════════════════ -->
+<div id="setup-overlay">
+  <div id="setup-box">
+    <div class="setup-hdr">
+      <div style="font-size:24px">🔗</div>
+      <div>
+        <h2>ตั้งค่าการเชื่อมต่อ Google Sheets</h2>
+        <p>ทำครั้งเดียว — ข้อมูลจะแชร์ได้ทุกคน</p>
+      </div>
+    </div>
+    <div class="setup-body">
+
+      <!-- STEP 1: Create Sheet + Script -->
+      <div class="step active" id="step1">
+        <div class="step-title"><span class="step-num">1</span>สร้าง Google Sheets + Apps Script</div>
+        <div class="instruction">
+          <ol>
+            <li>เปิด <a href="https://sheets.google.com" target="_blank" style="color:var(--blue)">sheets.google.com</a> → สร้าง Spreadsheet ใหม่</li>
+            <li>ตั้งชื่อ เช่น <code>Manikin Service Records</code></li>
+            <li>คลิกเมนู <code>Extensions</code> → <code>Apps Script</code></li>
+            <li>ลบโค้ดเดิมทั้งหมด แล้ว<br><strong>วางโค้ดด้านล่างนี้</strong></li>
+          </ol>
+        </div>
+        <div style="position:relative">
+          <textarea id="script-code" readonly style="width:100%;height:120px;font-size:11px;font-family:'IBM Plex Mono',monospace;border:1px solid var(--g300);border-radius:var(--rs);padding:10px;resize:none;background:var(--g50);color:var(--g700)"></textarea>
+          <button onclick="copyScript()" style="position:absolute;top:8px;right:8px;height:26px;padding:0 10px;border:1px solid var(--g300);border-radius:4px;background:var(--white);font-size:11px;cursor:pointer;color:var(--g700)" id="copy-btn">📋 Copy</button>
+        </div>
+        <div class="step-btns">
+          <button class="btn btn-primary" onclick="goStep(2)">ถัดไป →</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Deploy -->
+      <div class="step" id="step2">
+        <div class="step-title"><span class="step-num">2</span>Deploy เป็น Web App</div>
+        <div class="instruction">
+          <ol>
+            <li>ใน Apps Script คลิก <code>Deploy</code> → <code>New deployment</code></li>
+            <li>Type: <code>Web app</code></li>
+            <li>Execute as: <code>Me</code></li>
+            <li>Who has access: <code>Anyone</code></li>
+            <li>คลิก <code>Deploy</code> → Copy URL ที่ได้</li>
+          </ol>
+        </div>
+        <div class="step-btns">
+          <button class="btn btn-secondary" onclick="goStep(1)">← ย้อนกลับ</button>
+          <button class="btn btn-primary" onclick="goStep(3)">ถัดไป →</button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Enter URL -->
+      <div class="step" id="step3">
+        <div class="step-title"><span class="step-num">3</span>ใส่ URL ของ Web App</div>
+        <div class="instruction" style="margin-bottom:12px">
+          วาง Web App URL ที่ได้จาก Step 2 ด้านล่าง
+        </div>
+        <input type="text" class="url-input" id="api-url-input" placeholder="https://script.google.com/macros/s/xxxx/exec">
+        <div class="err-msg" id="url-err">URL ไม่ถูกต้อง กรุณาตรวจสอบ</div>
+        <div class="test-status" id="test-status"></div>
+        <div class="step-btns">
+          <button class="btn btn-secondary" onclick="goStep(2)">← ย้อนกลับ</button>
+          <button class="btn btn-primary" id="test-btn" onclick="testConnection()">🔌 ทดสอบการเชื่อมต่อ</button>
+        </div>
+        <div class="setup-skip"><a onclick="skipSetup()">ข้ามการตั้งค่า (ใช้แบบ Offline)</a></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══ NAV ════════════════════════════════════════════════════ -->
+<nav class="nav">
+  <div class="nav-logo">
+    <div class="nav-logo-icon">🫀</div>
+    <div>
+      <div class="nav-logo-text">Manikin System</div>
+      <div class="nav-logo-sub">CPR Equipment Management</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-tab active" onclick="showPage('dashboard')"><span>📊</span><span class="tab-text">Dashboard</span></div>
+    <div class="nav-tab" onclick="showPage('form')"><span>📋</span><span class="tab-text">Checklist</span></div>
+    <div class="nav-tab" onclick="showPage('records')"><span>📁</span><span class="tab-text">บันทึกทั้งหมด</span></div>
+    <div class="nav-tab" onclick="showPage('manual')"><span>📖</span><span class="tab-text">คู่มือหุ่น</span></div>
+    <div class="nav-tab" onclick="showPage('settings')"><span>⚙️</span><span class="tab-text">ตั้งค่า</span></div>
+  </div>
+  <div class="nav-right">
+    <span style="font-size:12px;color:#90CAF9;display:flex;align-items:center;gap:5px">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span id="sync-label">—</span>
+    </span>
+    <button class="nav-btn" onclick="syncData()">🔄 Sync</button>
+    <button class="nav-btn green" onclick="exportExcel()">📥 Excel</button>
+    <button class="nav-btn" onclick="showSetup()" title="ตั้งค่า">⚙</button>
+  </div>
+</nav>
+
+<!-- ══ DASHBOARD ══════════════════════════════════════════════ -->
+<div class="page active" id="page-dashboard">
+  <div class="dash-kpi">
+    <div class="kpi"><div class="kpi-icon" style="background:#E3F2FD">📋</div><div><div class="kpi-val" id="kpi-total">0</div><div class="kpi-lbl">รายการทั้งหมด</div></div></div>
+    <div class="kpi"><div class="kpi-icon" style="background:#E8F5E9">✅</div><div><div class="kpi-val" id="kpi-done" style="color:var(--green)">0</div><div class="kpi-lbl">เสร็จสมบูรณ์</div></div></div>
+    <div class="kpi"><div class="kpi-icon" style="background:#FFEBEE">⚠️</div><div><div class="kpi-val" id="kpi-pending" style="color:var(--amber)">0</div><div class="kpi-lbl">รอดำเนินการ</div></div></div>
+    <div class="kpi"><div class="kpi-icon" style="background:#FFF3E0">🔋</div><div><div class="kpi-val" id="kpi-bat">—</div><div class="kpi-lbl">Battery เฉลี่ย</div></div></div>
+  </div>
+  <div class="dash-grid wide">
+    <div class="dash-card">
+      <div class="dash-card-hdr">
+        <div class="dash-card-title">รายการล่าสุด</div>
+        <button class="action-btn" onclick="showPage('records')" style="height:26px;font-size:11px;padding:0 10px">ดูทั้งหมด →</button>
+      </div>
+      <div style="padding:0"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>วันที่</th><th>Model</th><th>Serial</th><th>Inspector</th><th>Status</th><th>Battery</th></tr></thead><tbody id="dash-recent-body"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--g500)">ยังไม่มีข้อมูล</td></tr></tbody></table></div></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-hdr"><div class="dash-card-title">สถานะการซ่อม</div></div>
+      <div class="dash-card-body"><div class="chart-container"><canvas id="chart-status"></canvas></div></div>
+    </div>
+  </div>
+  <div class="dash-grid">
+    <div class="dash-card">
+      <div class="dash-card-hdr"><div class="dash-card-title">Pass Rate รายรายการ</div></div>
+      <div class="dash-card-body"><div class="chart-container" style="height:210px"><canvas id="chart-pass"></canvas></div></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-hdr"><div class="dash-card-title">สรุปตาม Inspector</div></div>
+      <div class="dash-card-body"><div id="insp-summary" style="display:flex;flex-direction:column;gap:8px"></div></div>
+    </div>
+  </div>
+
+  <div class="dash-card" style="margin-bottom:14px">
+    <div class="dash-card-hdr" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div class="dash-card-title">ปฏิทิน Calibrate</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--g700)"><span style="width:12px;height:12px;border-radius:3px;background:#1565C0;display:inline-block"></span>ตรวจก่อน-หลังการใช้งาน</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--g700)"><span style="width:12px;height:12px;border-radius:3px;background:#C62828;display:inline-block"></span>ตรวจซ่อม</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--g700)"><span style="width:12px;height:12px;border-radius:3px;background:#2E7D32;display:inline-block"></span>ตรวจตามระยะ</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--g700)"><span style="width:12px;height:12px;border-radius:3px;background:#E65100;display:inline-block"></span>ติดตั้ง</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--g700)"><span style="width:12px;height:12px;border-radius:3px;background:#6A1B9A;display:inline-block"></span>หลายประเภท</div>
+      </div>
+    </div>
+    <div class="dash-card-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <button onclick="dcalPrev()" style="width:30px;height:30px;border:1px solid var(--g300);border-radius:var(--rs);background:var(--white);cursor:pointer;font-size:15px;color:var(--g700)">&#8592;</button>
+        <span style="font-size:14px;font-weight:700;color:var(--g900);cursor:pointer;padding:4px 10px;border-radius:6px;transition:background .12s" id="dcal-title" onclick="dcalOpenPicker()" title="คลิกเลือกเดือน/ปี" onmouseenter="this.style.background='var(--g100)'" onmouseleave="this.style.background=''"></span>
+        <button onclick="dcalNext()" style="width:30px;height:30px;border:1px solid var(--g300);border-radius:var(--rs);background:var(--white);cursor:pointer;font-size:15px;color:var(--g700)">&#8594;</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px" id="dcal-grid"></div>
+
+      <!-- Dashboard Calendar Picker -->
+      <div id="dcal-picker" style="display:none;background:var(--white);border:1px solid var(--g200);border-radius:var(--r);box-shadow:var(--shadow-md);padding:14px 16px;margin-top:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+          <span>เลือกเดือน / ปี</span>
+          <button onclick="dcalClosePicker()" style="background:none;border:none;cursor:pointer;color:var(--g700);font-size:16px">✕</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <button onclick="dcalPickerYear(-1)" style="width:32px;height:32px;border:1px solid var(--g200);border-radius:6px;background:var(--white);cursor:pointer;font-size:14px;color:var(--g700);flex-shrink:0">&#8592;</button>
+          <div style="flex:1;text-align:center;font-size:16px;font-weight:700;color:var(--g900)" id="dcal-picker-year"></div>
+          <button onclick="dcalPickerYear(1)" style="width:32px;height:32px;border:1px solid var(--g200);border-radius:6px;background:var(--white);cursor:pointer;font-size:14px;color:var(--g700);flex-shrink:0">&#8594;</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px" id="dcal-picker-months"></div>
+      </div>
+      <div id="dcal-tooltip" style="display:none;margin-top:14px;background:var(--g50);border:1px solid var(--g200);border-radius:var(--rs);padding:12px"></div>
+    </div>
+  </div>
+
+  <!-- ══ ประวัติการใช้งานหุ่น ══ -->
+  <div class="dash-card" style="margin-bottom:14px">
+    <div class="dash-card-hdr" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div class="dash-card-title">ประวัติการใช้งานหุ่น</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center" id="history-filters">
+        <button onclick="setHistoryFilter('all')" id="hf-all" style="height:26px;padding:0 10px;border-radius:20px;border:1px solid var(--navy);background:var(--navy);color:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif">ทั้งหมด</button>
+        <button onclick="setHistoryFilter('model','Metiman')" id="hf-Metiman" style="height:26px;padding:0 10px;border-radius:20px;border:1px solid var(--g300);background:var(--white);color:var(--g700);font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">Metiman</button>
+        <button onclick="setHistoryFilter('model','IStan')" id="hf-IStan" style="height:26px;padding:0 10px;border-radius:20px;border:1px solid var(--g300);background:var(--white);color:var(--g700);font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">IStan</button>
+        <button onclick="setHistoryFilter('model','BabySim')" id="hf-BabySim" style="height:26px;padding:0 10px;border-radius:20px;border:1px solid var(--g300);background:var(--white);color:var(--g700);font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">BabySim</button>
+        <button onclick="setHistoryFilter('model','Leardal')" id="hf-Leardal" style="height:26px;padding:0 10px;border-radius:20px;border:1px solid var(--g300);background:var(--white);color:var(--g700);font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">Leardal</button>
+        <button onclick="setHistoryFilter('model','Ambuman')" id="hf-Ambuman" style="height:26px;padding:0 10px;border-radius:20px;border:1px solid var(--g300);background:var(--white);color:var(--g700);font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">Ambuman</button>
+        <div style="width:1px;height:20px;background:var(--g300);margin:0 2px"></div>
+        <button onclick="setHistoryFilter('status','more')" id="hf-more" style="height:26px;padding:0 10px;border-radius:20px;border:1px solid var(--g300);background:var(--white);color:var(--g700);font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">ยังต้องซ่อม</button>
+        <button onclick="setHistoryFilter('status','wait')" id="hf-wait" style="height:26px;padding:0 10px;border-radius:20px;border:1px solid var(--g300);background:var(--white);color:var(--g700);font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">รออะไหล่</button>
+      </div>
+    </div>
+    <!-- Status cards row -->
+    <div class="dash-card-body" style="padding-bottom:0">
+      <div id="history-status-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:14px"></div>
+    </div>
+    <!-- Timeline -->
+    <div style="padding:0 16px 14px">
+      <div style="font-size:11px;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">ประวัติล่าสุด</div>
+      <div id="history-timeline" style="display:flex;flex-direction:column;gap:6px"></div>
+      <div id="history-empty" style="display:none;text-align:center;padding:24px;color:var(--g500);font-size:13px">ไม่พบข้อมูล</div>
+      <button id="history-show-more" onclick="historyShowMore()" style="display:none;width:100%;height:32px;margin-top:8px;border:1px solid var(--g200);border-radius:var(--rs);background:var(--g50);color:var(--g700);font-size:12px;cursor:pointer;font-family:'Sarabun',sans-serif">แสดงเพิ่มเติม...</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MANUAL PAGE ═════════════════════════════════════════════ -->
+<div class="page" id="page-manual">
+  <div style="max-width:900px;margin:0 auto">
+    <div style="background:var(--navy);border-radius:14px;padding:18px 22px;margin-bottom:16px;display:flex;align-items:center;gap:14px">
+      <div style="width:44px;height:44px;background:rgba(255,255,255,.12);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">📖</div>
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:2px">คู่มือหุ่นจำลอง CPR</div>
+        <div style="font-size:11px;color:#90CAF9">ข้อมูลสเปก วิธีใช้ และลิงก์คู่มือผู้ผลิต แต่ละรุ่น</div>
+      </div>
+    </div>
+    <div id="manual-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
+  </div>
+</div>
+
+<!-- ══ SETTINGS PAGE ══════════════════════════════════════════ -->
+<div class="page" id="page-settings">
+  <div style="max-width:780px;margin:0 auto">
+    <div style="background:var(--navy);border-radius:14px;padding:18px 22px;margin-bottom:16px;display:flex;align-items:center;gap:14px">
+      <div style="width:44px;height:44px;background:rgba(255,255,255,.12);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">⚙️</div>
+      <div><div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:2px">ตั้งค่าระบบ</div><div style="font-size:11px;color:#90CAF9">แก้ไขรายการ Dropdown ทั้งหมด — บันทึกอัตโนมัติ</div></div>
+    </div>
+
+    <div id="settings-sections"></div>
+
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button onclick="settingsReset()" style="height:38px;padding:0 18px;border:1px solid var(--g300);border-radius:var(--rs);background:var(--white);color:var(--g700);font-size:13px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer">↺ คืนค่าเริ่มต้น</button>
+      <button onclick="showPage('form')" style="height:38px;padding:0 18px;border:none;border-radius:var(--rs);background:var(--navy);color:#fff;font-size:13px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;margin-left:auto">← กลับไปกรอกข้อมูล</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FORM ════════════════════════════════════════════════════ -->
+<div class="page" id="page-form">
+  <div class="form-wrap">
+    <div class="form-header">
+      <div class="form-header-icon">🫀</div>
+      <div><h1>Manikin Service & Calibration Checklist</h1><p>แบบฟอร์มตรวจสอบและสอบเทียบหุ่นจำลอง CPR</p></div>
+    </div>
+    <div class="summary-bar">
+      <div class="sm"><div class="sm-val green" id="s-pass">0</div><div class="sm-lbl">Pass</div></div>
+      <div class="sm"><div class="sm-val red" id="s-fail">0</div><div class="sm-lbl">Fail</div></div>
+      <div class="sm"><div class="sm-val" id="s-pct">0%</div><div class="sm-lbl">ครบถ้วน</div></div>
+    </div>
+    <div class="prog-wrap"><div class="prog-bar" id="prog"></div></div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="dot" style="background:var(--blue)"></span>ข้อมูลทั่วไป</div>
+      <div class="card-body"><div class="grid2">
+        <div class="field full">
+          <label>วันที่ <span style="font-size:10px;color:var(--g500);font-weight:400">(คลิกเลือกช่วงวันที่)</span></label>
+          <div class="datepick-trigger" id="f-datepick-trigger" onclick="openDatePicker('f')">
+            <span id="f-datepick-label" style="color:var(--g500)">คลิกเลือกวันที่...</span>
+            <span style="font-size:14px;color:var(--g500)">📅</span>
+          </div>
+          <input type="hidden" id="f-date-start">
+          <input type="hidden" id="f-date-end">
+          <input type="hidden" id="f-date-multi">
+        </div>
+        <div class="field"><label>Calibrate</label>
+          <select id="f-cal" onchange="onCalibrateChange('f')"><option value="">-- เลือก --</option><option>ตรวจก่อน-หลังการใช้งาน</option><option>ตรวจซ่อม</option><option>ตรวจตามระยะ</option><option>ติดตั้ง</option></select>
+        </div>
+        <div class="field" id="f-course-wrap" style="display:none"><label>Course</label>
+          <select id="f-course"><option value="">-- เลือก --</option><option>CoE</option><option>ACLS</option><option>PALS</option><option>BLS</option><option>Other</option></select>
+        </div>
+        <div class="field" id="f-price-wrap" style="display:none"><label>ราคา / ค่าบริการ (บาท)</label>
+          <input type="number" id="f-price" placeholder="0.00" min="0" step="0.01" style="height:36px">
+        </div>
+        <div class="field"><label>Inspector</label>
+          <select id="f-insp" onchange="onInspectorChange('f')"><option value="">-- เลือก --</option><option>Supakit</option><option>Primed Medical</option><option>BJH Medical</option><option>Inter Medical</option><option>Other</option></select>
+          <div id="f-insp-hint" style="font-size:10px;color:var(--g500);margin-top:2px;min-height:14px"></div>
+        </div>
+        <div class="field"><label>Model (รุ่น)</label>
+          <select id="f-model" onchange="updateSerialOptions();onModelChange('f')">
+            <option value="">-- เลือก Model --</option>
+            <option>Metiman</option><option>IStan</option><option>BabySim</option><option>Leardal</option><option>Ambuman</option>
+          </select>
+        </div>
+        <div class="field"><label>Serial Number <span style="font-size:10px;color:var(--g500);font-weight:400">(เลือกได้หลายรายการ)</span></label>
+          <div class="multi-select-wrap" id="serial-wrap">
+            <div class="multi-select-display" id="serial-display" onclick="toggleSerialDrop()">-- เลือก Model ก่อน --</div>
+            <div class="multi-select-drop" id="serial-drop"></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="dot" style="background:var(--amber)"></span>การใช้งาน — Pass / Fail / N/A
+        <div style="display:flex;gap:5px;margin-left:auto">
+          <button onclick="setAllPFA('pass','f')" style="height:24px;padding:0 10px;border-radius:4px;border:1px solid var(--green);background:var(--green-l);color:var(--green);font-size:11px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif">✓ All Pass</button>
+          <button onclick="setAllPFA('fail','f')" style="height:24px;padding:0 10px;border-radius:4px;border:1px solid var(--red);background:var(--red-l);color:var(--red);font-size:11px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif">✗ All Fail</button>
+          <button onclick="setAllPFA('na','f')"  style="height:24px;padding:0 10px;border-radius:4px;border:1px solid var(--g400);background:var(--g100);color:var(--g700);font-size:11px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif">— All N/A</button>
+          <button onclick="setAllPFA(null,'f')"  style="height:24px;padding:0 10px;border-radius:4px;border:1px solid var(--g300);background:var(--white);color:var(--g500);font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">ล้าง</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="pfa-list"></div>
+        <div class="bat-section">
+          <div class="bat-label">Battery<span>แบตเตอรี่</span></div>
+          <input type="range" class="bat-slider" min="0" max="100" step="1" value="80" id="bat-range" oninput="updateBat(this.value)">
+          <div class="bat-pct" id="bat-val">80%</div>
+          <div class="bat-visual"><div class="bat-fill" id="bat-bar" style="width:80%;background:#2E7D32"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="dot" style="background:var(--green)"></span>Status (ผลการซ่อม)</div>
+      <div class="card-body"><div class="status-row">
+        <button class="stbtn" id="st-done" onclick="setStatus('done')">✓ เสร็จสมบูรณ์</button>
+        <button class="stbtn" id="st-more" onclick="setStatus('more')">⚙ ยังต้องซ่อมต่อ</button>
+        <button class="stbtn" id="st-wait" onclick="setStatus('wait')">⏳ รออะไหล่</button>
+      </div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="dot" style="background:var(--purple)"></span>รายละเอียด</div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+        <div class="field"><label>Problem Description (อาการเสีย)</label><textarea id="f-prob" placeholder="อธิบายอาการเสียหรือปัญหาที่พบ..."></textarea></div>
+        <div class="field"><label>Service Description (รายละเอียดการบริการ)</label><textarea id="f-svc" placeholder="อธิบายสิ่งที่ดำเนินการซ่อม / แก้ไข / ปรับเทียบ..."></textarea></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="dot" style="background:var(--teal)"></span>แนบเอกสาร</div>
+      <div class="card-body">
+        <div class="upload-zone" onclick="document.getElementById('f-file').click()">
+          <div style="font-size:24px;color:var(--g400);margin-bottom:5px">📎</div>
+          <p style="font-size:13px;color:var(--g500)">คลิกเพื่อเลือกไฟล์</p>
+          <small style="font-size:11px;color:var(--g400)">PDF, JPG, PNG</small>
+          <input type="file" id="f-file" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="addFiles(this.files)">
+        </div>
+        <div class="file-list" id="file-list"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="dot" style="background:var(--blue)"></span>ปฏิทิน</div>
+      <div class="card-body">
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="changeMonth(-1)">&#8592;</button>
+          <span class="cal-month-lbl" id="cal-title"></span>
+          <button class="cal-nav-btn" onclick="changeMonth(1)">&#8594;</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+    </div>
+
+    <button class="submit-btn" id="submit-btn" onclick="saveRecord()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+      บันทึกข้อมูล
+    </button>
+  </div>
+</div>
+
+<!-- ══ RECORDS ═════════════════════════════════════════════════ -->
+<div class="page" id="page-records">
+  <div class="records-toolbar">
+    <input type="text" class="search-input" id="search-input" placeholder="🔍 ค้นหา Model, Serial, Inspector..." oninput="filterRecords()">
+    <select class="filter-select" id="filter-status" onchange="filterRecords()">
+      <option value="">Status ทั้งหมด</option><option value="done">เสร็จสมบูรณ์</option><option value="more">ยังต้องซ่อมต่อ</option><option value="wait">รออะไหล่</option>
+    </select>
+    <select class="filter-select" id="filter-model" onchange="filterRecords()">
+      <option value="">Model ทั้งหมด</option><option>Metiman</option><option>IStan</option><option>BabySim</option><option>Leardal</option><option>Ambuman</option>
+    </select>
+    <select class="filter-select" id="filter-insp" onchange="filterRecords()">
+      <option value="">Inspector ทั้งหมด</option><option>Supakit</option><option>Primed Medical</option><option>BJH Medical</option><option>Inter Medical</option><option>Other</option>
+    </select>
+    <button class="action-btn export" onclick="exportExcel()">📥 Export Excel</button>
+    <button class="action-btn danger" onclick="clearAll()">🗑 ล้างทั้งหมด</button>
+  </div>
+  <div class="records-table-wrap">
+    <div class="tbl-wrap">
+      <table class="rtbl">
+        <thead><tr>
+          <th>#</th><th onclick="sortBy('date')">วันที่</th><th onclick="sortBy('calibrate')">Calibrate</th>
+          <th onclick="sortBy('course')">Course</th><th onclick="sortBy('inspector')">Inspector</th>
+          <th onclick="sortBy('model')">Model</th><th>Serial No.</th>
+          <th>Pass</th><th>Fail</th><th>Battery</th><th onclick="sortBy('status')">Status</th><th></th>
+        </tr></thead>
+        <tbody id="records-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL ═══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="modal-title"></div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading-overlay"><div class="spinner"></div></div>
+<div class="toast" id="toast"></div>
+
+<!-- ══ EDIT MODAL ═════════════════════════════════════════════ -->
+<div class="modal-overlay" id="edit-overlay" onclick="closeEditModal(event)" style="z-index:300">
+  <div class="edit-modal">
+    <div class="modal-hdr">
+      <div class="modal-title">✏️ แก้ไขข้อมูล</div>
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:18px">
+      <div class="edit-section">
+        <div class="edit-section-title">ข้อมูลทั่วไป</div>
+        <div class="grid2">
+          <div class="field full">
+            <label>วันที่ <span style="font-size:10px;color:var(--g500);font-weight:400">(คลิกเลือกช่วงวันที่)</span></label>
+            <div class="datepick-trigger" id="e-datepick-trigger" onclick="openDatePicker('e')">
+              <span id="e-datepick-label" style="color:var(--g500)">คลิกเลือกวันที่...</span>
+              <span style="font-size:14px;color:var(--g500)">📅</span>
+            </div>
+            <input type="hidden" id="e-date-start">
+            <input type="hidden" id="e-date-end">
+            <input type="hidden" id="e-date-multi">
+          </div>
+          <div class="field"><label>Calibrate</label>
+            <select id="e-cal" onchange="onCalibrateChange('e')"><option value="">-- เลือก --</option><option>ตรวจก่อน-หลังการใช้งาน</option><option>ตรวจซ่อม</option><option>ตรวจตามระยะ</option><option>ติดตั้ง</option></select>
+          </div>
+          <div class="field" id="e-course-wrap" style="display:none"><label>Course</label>
+            <select id="e-course"><option value="">-- เลือก --</option><option>CoE</option><option>ACLS</option><option>PALS</option><option>BLS</option><option>Other</option></select>
+          </div>
+          <div class="field" id="e-price-wrap" style="display:none"><label>ราคา / ค่าบริการ (บาท)</label>
+            <input type="number" id="e-price" placeholder="0.00" min="0" step="0.01" style="height:36px">
+          </div>
+          <div class="field"><label>Inspector</label>
+            <select id="e-insp" onchange="onInspectorChange('e')"><option value="">-- เลือก --</option><option>Supakit</option><option>Primed Medical</option><option>BJH Medical</option><option>Inter Medical</option><option>Other</option></select>
+            <div id="e-insp-hint" style="font-size:10px;color:var(--g500);margin-top:2px;min-height:14px"></div>
+          </div>
+          <div class="field"><label>Model</label>
+            <select id="e-model" onchange="updateEditSerial();onModelChange('e')">
+              <option value="">-- เลือก --</option>
+              <option>Metiman</option><option>IStan</option><option>BabySim</option><option>Leardal</option><option>Ambuman</option>
+            </select>
+          </div>
+          <div class="field"><label>Serial Number <span style="font-size:10px;color:var(--g500);font-weight:400">(เลือกได้หลายรายการ)</span></label>
+            <div class="multi-select-wrap" id="e-serial-wrap">
+              <div class="multi-select-display" id="e-serial-display" onclick="toggleEditSerialDrop()">-- เลือก Model ก่อน --</div>
+              <div class="multi-select-drop" id="e-serial-drop"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-section">
+        <div class="edit-section-title" style="display:flex;align-items:center">การใช้งาน — Pass / Fail / N/A
+          <div style="display:flex;gap:5px;margin-left:auto">
+            <button onclick="setAllPFA('pass','e')" style="height:22px;padding:0 8px;border-radius:4px;border:1px solid var(--green);background:var(--green-l);color:var(--green);font-size:11px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif">✓ All</button>
+            <button onclick="setAllPFA('fail','e')" style="height:22px;padding:0 8px;border-radius:4px;border:1px solid var(--red);background:var(--red-l);color:var(--red);font-size:11px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif">✗ All</button>
+            <button onclick="setAllPFA('na','e')"  style="height:22px;padding:0 8px;border-radius:4px;border:1px solid var(--g400);background:var(--g100);color:var(--g700);font-size:11px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif">N/A All</button>
+            <button onclick="setAllPFA(null,'e')"  style="height:22px;padding:0 8px;border-radius:4px;border:1px solid var(--g300);background:var(--white);color:var(--g500);font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">ล้าง</button>
+          </div>
+        </div>
+        <div id="e-pfa-list"></div>
+        <div class="bat-section" style="margin-top:4px">
+          <div class="bat-label">Battery<span>แบตเตอรี่</span></div>
+          <input type="range" class="bat-slider" min="0" max="100" step="1" value="80" id="e-bat-range" oninput="updateEditBat(this.value)">
+          <div class="bat-pct" id="e-bat-val">80%</div>
+          <div class="bat-visual"><div class="bat-fill" id="e-bat-bar" style="width:80%;background:#2E7D32"></div></div>
+        </div>
+      </div>
+
+      <div class="edit-section">
+        <div class="edit-section-title">Status ผลการซ่อม</div>
+        <div class="status-row">
+          <button class="stbtn" id="e-st-done" onclick="setEditStatus('done')">✓ เสร็จสมบูรณ์</button>
+          <button class="stbtn" id="e-st-more" onclick="setEditStatus('more')">⚙ ยังต้องซ่อมต่อ</button>
+          <button class="stbtn" id="e-st-wait" onclick="setEditStatus('wait')">⏳ รออะไหล่</button>
+        </div>
+      </div>
+
+      <div class="edit-section">
+        <div class="edit-section-title">รายละเอียด</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="field"><label>Problem Description (อาการเสีย)</label><textarea id="e-prob" placeholder="อธิบายอาการเสีย..." style="height:72px;padding:8px 10px;resize:vertical"></textarea></div>
+          <div class="field"><label>Service Description (รายละเอียดการบริการ)</label><textarea id="e-svc" placeholder="อธิบายรายละเอียดการบริการ..." style="height:72px;padding:8px 10px;resize:vertical"></textarea></div>
+        </div>
+      </div>
+
+      <button class="edit-save-btn" onclick="saveEdit()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+        บันทึกการแก้ไข
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CONFIG & STATE
+// ══════════════════════════════════════════════════════════════
+let API_URL = localStorage.getItem('manikin_api_url') || '';
+let records = JSON.parse(localStorage.getItem('manikin_records') || '[]');
+
+// ── Pre-load historical data from PDFs & Excel (run once) ────
+if (!localStorage.getItem('manikin_preloaded_v1')) {
+  const preloadRecords = [
+    // ══ Laerdal (Resusci Anne) — BJH Medical ═════════════════
+    {id:1001,date:'2025-03-10',dateEnd:'2025-03-10',calibrate:'ตรวจตามระยะ',course:'',inspector:'BJH Medical',model:'Leardal',serial:'Leardal Snowy Adult (17/04/2019)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'PM Machine',service:'ตรวจสอบตาม Check List, Check and Clean All Machine Test OK, ทดสอบใช้งาน สามารถใช้งานได้ปกติ (Job Sheet 11979)',price:'',attachments:'[]',savedAt:'2025-03-10T00:00:00.000Z'},
+    {id:1002,date:'2024-03-15',dateEnd:'2024-03-15',calibrate:'ตรวจตามระยะ',course:'',inspector:'BJH Medical',model:'Leardal',serial:'Leardal Snowy Adult (17/04/2019)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'PM ตรวจตามระยะประจำปี',service:'Check Device and Result Sheet: Test pass, Check and Clean all Test OK, ทดสอบใช้งาน สามารถใช้งานได้ปกติ (Job Sheet 14425, S/N 15147220602)',price:'',attachments:'[]',savedAt:'2024-03-15T00:00:00.000Z'},
+    {id:1003,date:'2024-07-05',dateEnd:'2024-07-05',calibrate:'ตรวจซ่อม',course:'',inspector:'BJH Medical',model:'Leardal',serial:'Leardal Snowy Adult (17/04/2019)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'Link Box มีปัญหา',service:'เปลี่ยน Link Box ใหม่ — ติดตั้ง Link Box Plus S/N TSB101007779 พบว่าเชื่อมต่อได้ปกติ, Software ver 7.2 สามารถ SW update ได้ (Job Sheet 07254, S/N 15124180074)',price:'',attachments:'[]',savedAt:'2024-07-05T00:00:00.000Z'},
+    {id:1004,date:'2024-09-04',dateEnd:'2024-09-04',calibrate:'ตรวจตามระยะ',course:'',inspector:'BJH Medical',model:'Leardal',serial:'Leardal Snowy Adult (17/04/2019)',pfa:['pass','pass','pass','na','pass','pass','na'],pass:5,fail:0,na:2,battery:100,status:'done',problem:'PM Machine ตรวจตามระยะ',service:'PM Follow by Result Sheet: Test pass, Check and Clean all Machine Test OK, Adjust Lead ECG Left and Right OK (Job Sheet 14448, S/N 15147220602)',price:'',attachments:'[]',savedAt:'2024-09-04T00:00:00.000Z'},
+    {id:1005,date:'2024-11-06',dateEnd:'2024-11-06',calibrate:'ติดตั้ง',course:'',inspector:'BJH Medical',model:'Leardal',serial:'Leardal Snowy Adult (17/04/2019)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'User แจ้งไม่สามารถเปลี่ยน Link Box and Simpad',service:'ติดตั้ง Link Box Plus S/N TSCC71000650 SW ver 8.1.9.2, Simpad Plus S/N TSCD31003117 SW ver 8.1.9.2, Check all Machine Test OK (Job Sheet 21627, S/N 15124180074)',price:'',attachments:'[]',savedAt:'2024-11-06T00:00:00.000Z'},
+    // ══ Laerdal ALS Baby — BJH Medical ══════════════════════
+    {id:1006,date:'2023-02-01',dateEnd:'2023-02-01',calibrate:'ตรวจซ่อม',course:'',inspector:'BJH Medical',model:'Leardal',serial:'Leardal ALS Baby No.1 (24/06/2019)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'สาย Defrib เสีย, ภาพมอนิเตอร์ขาดไป',service:'ทำการตรวจเช็คและแก้ไข (Job Sheet 49263, S/N 08003140, ALS Baby Trainer)',price:'',attachments:'[]',savedAt:'2023-02-01T00:00:00.000Z'},
+    // ══ Laerdal RA Skilltrainer — PM Jun63 ══════════════════
+    {id:1007,date:'2020-06-07',dateEnd:'2020-06-07',calibrate:'ตรวจตามระยะ',course:'',inspector:'BJH Medical',model:'Leardal',serial:'Leardal New (Dec23)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'ทำ PM หุ่น RA Skilltrainer 2 ตัว',service:'S/N 15124180075 (BMC16517), S/N 15124180074 (BMC16516) — ตรวจสอบตาม Check List (SR No. 04256)',price:'',attachments:'[]',savedAt:'2020-06-07T00:00:00.000Z'},
+    {id:1008,date:'2020-06-07',dateEnd:'2020-06-07',calibrate:'ตรวจตามระยะ',course:'',inspector:'BJH Medical',model:'Leardal',serial:'Leardal ALS Baby No.1 (24/06/2019)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'ทำ PM หุ่น ALS Baby 2 ตัว',service:'S/N 4817 (BMC16520), S/N 0718 (BMC16549) — ALS Baby (SR No. 04257)',price:'',attachments:'[]',savedAt:'2020-06-07T00:00:00.000Z'},
+    {id:1009,date:'2020-06-07',dateEnd:'2020-06-07',calibrate:'ตรวจตามระยะ',course:'',inspector:'BJH Medical',model:'Leardal',serial:'Leardal MegeCode Kid (24/06/2019)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'ทำ PM หุ่น MegaCode Kid',service:'S/N 231UMS4917002 (BMC16518) — MegaCode Kid (SR No. 04258)',price:'',attachments:'[]',savedAt:'2020-06-07T00:00:00.000Z'},
+    // ══ Ambuman — Inter Medical ══════════════════════════════
+    {id:2001,date:'2023-01-13',dateEnd:'2023-01-13',calibrate:'ตรวจซ่อม',course:'',inspector:'Inter Medical',model:'Ambuman',serial:'Ambuman No.2 (27/02/2017)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'ตัวที่ 1 Type 284317000 S/N 7099 — แผงวงจรสวิตช์ ทำงานไม่ต่อเนื่อง; ตัวที่ 2 Type 284317000 S/N 7099 — วักสัญญาณ สายต่อ Control กับ Concern ผิดปกติ',service:'เช็คและซ่อม (FO-IM-45 Rev.01, 13/1/66)',price:'',attachments:'[]',savedAt:'2023-01-13T00:00:00.000Z'},
+    {id:2002,date:'2023-07-26',dateEnd:'2023-07-26',calibrate:'ติดตั้ง',course:'',inspector:'Inter Medical',model:'Ambuman',serial:'Ambuman No.1 (27/02/2017)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'เปลี่ยนสปริง AmbhuMan S/N 7097',service:'เปลี่ยนสปริง 2 ตัว INV 6604592, ตรวจสอบพร้อมส่งมอบ (FO-IM-45 Rev.01, 26/7/66)',price:'13800',attachments:'[]',savedAt:'2023-07-26T00:00:00.000Z'},
+    {id:2003,date:'2023-07-26',dateEnd:'2023-07-26',calibrate:'ติดตั้ง',course:'',inspector:'Inter Medical',model:'Ambuman',serial:'Ambuman No.2 (27/02/2017)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'เปลี่ยนสปริง AmbhuMan S/N 7099',service:'เปลี่ยนสปริง 2 ตัว INV 6604592 (FO-IM-45 Rev.01, 26/7/66)',price:'13800',attachments:'[]',savedAt:'2023-07-26T00:00:00.000Z'},
+    // ══ Metiman MMP0708 — Primed Medical ════════════════════
+    {id:3001,date:'2023-03-29',dateEnd:'2023-03-29',calibrate:'ตรวจตามระยะ',course:'',inspector:'Primed Medical',model:'Metiman',serial:'MMP0708 (27/11/2015)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'PM ตามระยะประจำรอบเดือนมีนาคม 2566',service:'Update MacBook เพื่อใช้งาน Muse Viewer ได้, Update Muse SCE เป็น version 2.7 (ใบงาน S66032946)',price:'',attachments:'[]',savedAt:'2023-03-29T00:00:00.000Z'},
+    {id:3002,date:'2018-09-04',dateEnd:'2018-09-04',calibrate:'ตรวจซ่อม',course:'',inspector:'Primed Medical',model:'Metiman',serial:'MMP0708 (27/11/2015)',pfa:['fail','pass','pass','pass','pass','pass','pass'],pass:6,fail:1,na:0,battery:100,status:'done',problem:'โพรบ SPO2 ไม่ขึ้นและเสียบแล้วดับ',service:'แก้ไขสายตัวโพรบและป้องกันการโดนกันของสายไฟภายในสาย',price:'',attachments:'[]',savedAt:'2018-09-04T00:00:00.000Z'},
+    {id:3003,date:'2018-11-05',dateEnd:'2018-11-05',calibrate:'ตรวจซ่อม',course:'',inspector:'Primed Medical',model:'Metiman',serial:'MMP0708 (27/11/2015)',pfa:['fail','pass','pass','pass','pass','pass','pass'],pass:6,fail:1,na:0,battery:50,status:'wait',problem:'หุ่นเกิดอาการดับบ่อย',service:'Adapter เสีย รอทำการเปลี่ยน Adapter ตัวใหม่',price:'',attachments:'[]',savedAt:'2018-11-05T00:00:00.000Z'},
+    // ══ Metiman MMP1198 — Primed Medical ════════════════════
+    {id:4001,date:'2023-03-29',dateEnd:'2023-03-29',calibrate:'ตรวจตามระยะ',course:'',inspector:'Primed Medical',model:'Metiman',serial:'MMP1198 (27/11/2015)',pfa:['pass','pass','pass','fail','pass','pass','pass'],pass:6,fail:1,na:0,battery:100,status:'done',problem:'PM ตามระยะประจำรอบเดือนมีนาคม 2566',service:'Airway (ลิ้น) ขาด — แก้ไขแล้ว (ใบงาน S66032947)',price:'',attachments:'[]',savedAt:'2023-03-29T00:00:00.000Z'},
+    {id:4002,date:'2018-09-04',dateEnd:'2018-09-04',calibrate:'ตรวจซ่อม',course:'',inspector:'Primed Medical',model:'Metiman',serial:'MMP1198 (27/11/2015)',pfa:['fail','pass','pass','pass','pass','pass','pass'],pass:6,fail:1,na:0,battery:100,status:'done',problem:'โพรบ SPO2 ไม่ขึ้นและเสียบแล้วดับ',service:'แก้ไขสายตัวโพรบและป้องกันการโดนกันของสายไฟภายในสาย',price:'',attachments:'[]',savedAt:'2018-09-04T00:00:00.000Z'},
+    // ══ Metiman MMP1199 — Primed Medical ════════════════════
+    {id:5001,date:'2023-03-29',dateEnd:'2023-03-29',calibrate:'ตรวจตามระยะ',course:'',inspector:'Primed Medical',model:'Metiman',serial:'MMP1199 (27/11/2015)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'PM ตามระยะประจำรอบเดือนมีนาคม 2566',service:'NIBP ตั้งค่า ปรับแล้วดี (ใบงาน S66032951)',price:'',attachments:'[]',savedAt:'2023-03-29T00:00:00.000Z'},
+    {id:5002,date:'2018-09-04',dateEnd:'2018-09-04',calibrate:'ตรวจซ่อม',course:'CoE',inspector:'Primed Medical',model:'Metiman',serial:'MMP1199 (27/11/2015)',pfa:['fail','pass','pass','pass','pass','pass','pass'],pass:6,fail:1,na:0,battery:100,status:'done',problem:'โพรบ SPO2 ไม่ขึ้นและเสียบแล้วดับ',service:'แก้ไขสายตัวโพรบ',price:'',attachments:'[]',savedAt:'2018-09-04T00:00:00.000Z'},
+    // ══ IStan1188 — Primed Medical ═══════════════════════════
+    {id:6001,date:'2023-03-29',dateEnd:'2023-03-29',calibrate:'ตรวจตามระยะ',course:'',inspector:'Primed Medical',model:'IStan',serial:'ISTAN1188 (27/11/2015)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'PM ตามระยะประจำรอบเดือนมีนาคม 2566',service:'ทำความสะอาด/ตรวจสอบ IStan1188 (ใบงาน S66032949)',price:'',attachments:'[]',savedAt:'2023-03-29T00:00:00.000Z'},
+    // ══ BabySim — Primed Medical ═════════════════════════════
+    {id:7001,date:'2023-03-29',dateEnd:'2023-03-29',calibrate:'ตรวจตามระยะ',course:'',inspector:'Primed Medical',model:'BabySim',serial:'BabySim (27/11/2015)',pfa:['pass','pass','pass','na','pass','pass','pass'],pass:6,fail:0,na:1,battery:80,status:'more',problem:'Airway ข้างลิ้นขาด, ซ่อมแซมตาไม่พริบแล้วยังมีโอกาสพัง, ผิวหนังฉีกขาดบริเวณหน้า ลำตัว นิ้วมือ',service:'สามารถใช้งานได้ปกติ (ใบงาน S66032952)',price:'',attachments:'[]',savedAt:'2023-03-29T00:00:00.000Z'},
+    {id:7002,date:'2018-07-20',dateEnd:'2018-07-20',calibrate:'ตรวจซ่อม',course:'',inspector:'Primed Medical',model:'BabySim',serial:'BabySim (27/11/2015)',pfa:['fail','pass','pass','pass','pass','pass','pass'],pass:6,fail:1,na:0,battery:100,status:'done',problem:'ท่อสายในตัวเครื่องหลุด',service:'เปลี่ยนอะไหล่ขั้วต่อสายตัวใหม่',price:'',attachments:'[]',savedAt:'2018-07-20T00:00:00.000Z'},
+  ];
+
+  // Merge: only add records not already in storage
+  const existing = JSON.parse(localStorage.getItem('manikin_records') || '[]');
+  const existingIds = new Set(existing.map(r => r.id));
+  const toAdd = preloadRecords.filter(r => !existingIds.has(r.id));
+  const merged = [...toAdd, ...existing];
+  localStorage.setItem('manikin_records', JSON.stringify(merged));
+  localStorage.setItem('manikin_preloaded_v1', '1');
+  records = merged;
+}
+let sortField = 'date', sortDir = -1;
+let editingId = null;
+
+const pfaItems = [
+  ['Power On','เปิด-ปิดเครื่อง'],
+  ['Chest Compression','การกดหน้าอก'],
+  ['Vocal Sounds','เสียงพูด'],
+  ['EKG and Defib','คลื่นไฟฟ้าหัวใจและเครื่องกระตุ้นหัวใจ'],
+  ['Defibrillation Connectors','ตัวเชื่อมต่อการกระตุ้นหัวใจด้วยไฟฟ้า'],
+  ['Chest Move','หน้าอกขยับ'],
+  ['Cleaning','ทำความสะอาด']
+];
+const pfaState = Array(7).fill(null);
+let statusVal = '', calYear = new Date().getFullYear(), calMonth = new Date().getMonth(), selectedDate = null;
+
+// ══════════════════════════════════════════════════════════════
+// CONFIG — editable via Settings page
+// ══════════════════════════════════════════════════════════════
+const defaultConfig = {
+  calibrate: ['ตรวจก่อน-หลังการใช้งาน','ตรวจซ่อม','ตรวจตามระยะ','ติดตั้ง'],
+  course:    ['CoE','ACLS','PALS','BLS','Other'],
+  inspector: ['Supakit','Primed Medical','BJH Medical','Inter Medical','Other'],
+  models:    ['Metiman','IStan','BabySim','Leardal','Ambuman'],
+  serials: {
+    'IStan':   ['ISTAN1188 (27/11/2015)'],
+    'BabySim': ['BabySim (27/11/2015)'],
+    'Metiman': ['MMP0708 (27/11/2015)','MMP1198 (27/11/2015)','MMP1199 (27/11/2015)'],
+    'Leardal': ['Leardal New (Dec23)','Leardal Kopper Adult (24/06/2019)','Leardal Rose Adult (24/06/2019)','Leardal Snowy Adult (17/04/2019)','Leardal MegeCode Kid (24/06/2019)','Leardal ALS Baby No.1 (24/06/2019)','Leardal ALS Baby No.2 (24/06/2019)'],
+    'Ambuman': ['Ambuman No.1 (27/02/2017)','Ambuman No.2 (27/02/2017)','Ambuman No.3 (27/02/2017)','Ambuman No.4 (27/02/2017)']
+  },
+  manuals: {
+    'Metiman':  { maker:'Gaumard Scientific', features:'CPR Feedback, Vocal Sounds, EKG, Defib', inspector:'Primed Medical', note:'', links:[] },
+    'IStan':    { maker:'Gaumard Scientific', features:'Full Body, EKG, Defib, IV Access, Respiratory', inspector:'Primed Medical', note:'', links:[] },
+    'BabySim':  { maker:'Gaumard Scientific', features:'Neonatal Simulation, Airway, Chest Rise', inspector:'Primed Medical', note:'', links:[] },
+    'Leardal':  { maker:'Laerdal Medical', features:'CPR Feedback, AED Training, QCPR', inspector:'BJH Medical', note:'', links:[] },
+    'Ambuman':  { maker:'Ambuman / Nasco', features:'Basic CPR, Airway Management', inspector:'Inter Medical', note:'', links:[] }
+  }
+};
+
+function loadConfig() {
+  const saved = localStorage.getItem('manikin_config');
+  return saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(defaultConfig));
+}
+function saveConfig(cfg) {
+  localStorage.setItem('manikin_config', JSON.stringify(cfg));
+}
+
+let cfg = loadConfig();
+let serialMap = cfg.serials;
+
+// Rebuild all dropdowns from cfg
+function applyConfig() {
+  cfg = loadConfig();
+  serialMap = cfg.serials;
+  const selectors = {
+    'f-cal':    cfg.calibrate,
+    'e-cal':    cfg.calibrate,
+    'f-course': cfg.course,
+    'e-course': cfg.course,
+    'f-insp':   cfg.inspector,
+    'e-insp':   cfg.inspector,
+    'f-model':  cfg.models,
+    'e-model':  cfg.models,
+    'filter-model':   cfg.models,
+    'filter-insp':    cfg.inspector,
+    'filter-course':  cfg.course,
+    'filter-status':  null  // skip — not editable
+  };
+  Object.entries(selectors).forEach(([id, opts]) => {
+    if (!opts) return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = '<option value="">-- เลือก --</option>' + opts.map(o => `<option${o===cur?' selected':''}>${o}</option>`).join('');
+  });
+  // filter-insp & filter-course need "ทั้งหมด" prefix
+  ['filter-insp','filter-course','filter-model'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    const label = id==='filter-insp'?'Inspector':id==='filter-course'?'Course':'Model';
+    const opts = id==='filter-insp'?cfg.inspector:id==='filter-course'?cfg.course:cfg.models;
+    el.innerHTML = `<option value="">${label} ทั้งหมด</option>` + opts.map(o=>`<option${o===cur?' selected':''}>${o}</option>`).join('');
+  });
+  updateSerialOptions();
+  updateEditSerial();
+}
+
+
+
+const statusMap = {done:'เสร็จสมบูรณ์',more:'ยังต้องซ่อมต่อ',wait:'รออะไหล่','':'-'};
+const statusBadge = {done:'done',more:'more',wait:'wait','':'na'};
+
+// ══════════════════════════════════════════════════════════════
+// SETUP
+// ══════════════════════════════════════════════════════════════
+const APPS_SCRIPT_CODE = `const SHEET_NAME = 'Records';
+const FOLDER_NAME = 'Manikin Attachments';
+const HEADERS = ['ID','วันที่','Calibrate','Course','Inspector','Model','Serial No.','Power On','Chest Compression','Vocal Sounds','EKG and Defib','Defibrillation Connectors','Chest Move','Cleaning','Pass','Fail','N/A','Battery (%)','Status','อาการเสีย','รายละเอียดบริการ','ไฟล์แนบ','บันทึกเมื่อ'];
+
+function doGet(e){
+  const a=e.parameter.action||'getAll';
+  try{
+    if(a==='getAll')return respond(getAllRecords());
+    if(a==='ping')return respond({ok:true});
+  }catch(err){return respond({error:err.message});}
+}
+
+function doPost(e){
+  try{
+    const d=JSON.parse(e.postData.contents);
+    const a=d.action||'save';
+    if(a==='save')return respond(saveRecord(d.record));
+    if(a==='delete')return respond(deleteRecord(d.id));
+    if(a==='uploadFile')return respond(uploadFile(d));
+  }catch(err){return respond({error:err.message});}
+}
+
+function respond(d){
+  return ContentService.createTextOutput(JSON.stringify(d)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function getFolder(){
+  const files=DriveApp.getFoldersByName(FOLDER_NAME);
+  return files.hasNext()?files.next():DriveApp.createFolder(FOLDER_NAME);
+}
+
+function getSheet(){
+  const ss=SpreadsheetApp.getActiveSpreadsheet();
+  let sh=ss.getSheetByName(SHEET_NAME);
+  if(!sh){
+    sh=ss.insertSheet(SHEET_NAME);
+    sh.appendRow(HEADERS);
+    sh.getRange(1,1,1,HEADERS.length).setBackground('#0A2342').setFontColor('#ffffff').setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function uploadFile(d){
+  const folder=getFolder();
+  const blob=Utilities.newBlob(Utilities.base64Decode(d.data),d.mimeType,d.filename);
+  const file=folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK,DriveApp.Permission.VIEW);
+  return {ok:true,fileId:file.getId(),url:file.getUrl(),name:file.getName()};
+}
+
+function getAllRecords(){
+  const sh=getSheet();
+  const rows=sh.getDataRange().getValues();
+  if(rows.length<=1)return[];
+  // Parse date: handles DD/MM/YYYY, YYYY-MM-DD, or Date objects
+  function parseDate(v) {
+    if (!v) return '';
+    if (v instanceof Date) {
+      const y=v.getFullYear(), m=String(v.getMonth()+1).padStart(2,'0'), d=String(v.getDate()).padStart(2,'0');
+      return y+'-'+m+'-'+d;
+    }
+    const s = String(v);
+    // DD/MM/YYYY
+    const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dmy) return dmy[3]+'-'+dmy[2].padStart(2,'0')+'-'+dmy[1].padStart(2,'0');
+    // Already YYYY-MM-DD or ISO
+    return s.split('T')[0];
+  }
+  return rows.slice(1).map(r=>({
+    id:r[0], date:parseDate(r[1]), calibrate:r[2], course:r[3], inspector:r[4],
+    model:r[5], serial:r[6],
+    pfa:[r[7],r[8],r[9],r[10],r[11],r[12],r[13]].map(v=>v||null),
+    pass:r[14], fail:r[15], na:r[16], battery:r[17],
+    status:r[18], problem:r[19], service:r[20],
+    attachments:r[21]||'', savedAt:r[22]
+  }));
+}
+
+function saveRecord(rec){
+  const sh=getSheet();
+  const rows=sh.getDataRange().getValues();
+  const pfaVals=(rec.pfa||[]).map(v=>v||'');
+  // Format dates as DD/MM/YYYY to prevent Sheets from converting to datetime
+  function fmtDate(ds) {
+    if (!ds) return '';
+    const parts = String(ds).split('T')[0].split('-');
+    if (parts.length !== 3) return ds;
+    return parts[2]+'/'+parts[1]+'/'+parts[0];
+  }
+  const row=[
+    rec.id, fmtDate(rec.date), rec.calibrate||'', rec.course||'', rec.inspector||'',
+    rec.model||'', rec.serial||'', ...pfaVals,
+    rec.pass||0, rec.fail||0, rec.na||0, rec.battery||0,
+    rec.status||'', rec.problem||'', rec.service||'',
+    rec.attachments||'',
+    new Date().toLocaleString('th-TH')
+  ];
+  for(let i=1;i<rows.length;i++){
+    if(String(rows[i][0])===String(rec.id)){
+      sh.getRange(i+1,1,1,row.length).setValues([row]);
+      return{ok:true,action:'updated'};
+    }
+  }
+  sh.appendRow(row);
+  return{ok:true,action:'inserted'};
+}
+
+function deleteRecord(id){
+  const sh=getSheet();
+  const rows=sh.getDataRange().getValues();
+  for(let i=1;i<rows.length;i++){
+    if(String(rows[i][0])===String(id)){
+      sh.deleteRow(i+1);
+      return{ok:true};
+    }
+  }
+  return{ok:false,error:'Not found'};
+}`;
+
+document.getElementById('script-code').value = APPS_SCRIPT_CODE;
+
+function copyScript() {
+  navigator.clipboard.writeText(APPS_SCRIPT_CODE).then(() => {
+    document.getElementById('copy-btn').textContent = '✅ Copied!';
+    setTimeout(() => document.getElementById('copy-btn').textContent = '📋 Copy', 2000);
+  });
+}
+
+function goStep(n) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById('step' + n).classList.add('active');
+}
+
+async function testConnection() {
+  const url = document.getElementById('api-url-input').value.trim();
+  if (!url.includes('script.google.com')) {
+    document.getElementById('url-err').style.display = 'block';
+    document.getElementById('api-url-input').classList.add('error');
+    return;
+  }
+  document.getElementById('url-err').style.display = 'none';
+  const ts = document.getElementById('test-status');
+  const btn = document.getElementById('test-btn');
+  ts.className = 'test-status loading'; ts.textContent = '⏳ กำลังทดสอบ...'; btn.disabled = true;
+  try {
+    const res = await fetch(url + '?action=ping');
+    const data = await res.json();
+    if (data.ok) {
+      ts.className = 'test-status ok'; ts.textContent = '✅ เชื่อมต่อสำเร็จ! กำลังเปิดระบบ...';
+      API_URL = url;
+      localStorage.setItem('manikin_api_url', url);
+      setTimeout(() => { closeSetup(); syncData(); }, 1200);
+    } else { throw new Error(data.error || 'Failed'); }
+  } catch(e) {
+    ts.className = 'test-status fail'; ts.textContent = '❌ เชื่อมต่อไม่ได้ — ตรวจสอบ URL หรือ Deploy อีกครั้ง';
+  }
+  btn.disabled = false;
+}
+
+function closeSetup() { document.getElementById('setup-overlay').style.display = 'none'; updateSyncStatus('ready'); }
+function showSetup() { document.getElementById('setup-overlay').style.display = 'flex'; goStep(API_URL ? 3 : 1); if(API_URL) document.getElementById('api-url-input').value = API_URL; }
+function skipSetup() { closeSetup(); showToast('ใช้งานแบบ Offline — ข้อมูลเก็บในเบราว์เซอร์'); }
+
+// ══════════════════════════════════════════════════════════════
+// SYNC
+// ══════════════════════════════════════════════════════════════
+function updateSyncStatus(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot' + (state === 'syncing' ? ' syncing' : state === 'error' ? ' error' : '');
+  lbl.textContent = label || (state === 'ready' ? (API_URL ? 'Connected' : 'Offline') : state === 'syncing' ? 'Syncing...' : 'Error');
+}
+
+async function syncData() {
+  if (!API_URL) { updateSyncStatus('error', 'No URL'); return; }
+  updateSyncStatus('syncing');
+  try {
+    const res = await fetch(API_URL + '?action=getAll');
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      records = data;
+      localStorage.setItem('manikin_records', JSON.stringify(records));
+      updateSyncStatus('ready', 'Synced ✓');
+      renderDashboard(); renderRecords(); renderCal();
+      showToast('Sync สำเร็จ ' + records.length + ' รายการ ✓', 'success');
+    } else throw new Error();
+  } catch { updateSyncStatus('error', 'Sync failed'); showToast('Sync ไม่สำเร็จ', 'error'); }
+}
+
+async function apiSave(record) {
+  if (!API_URL) return false;
+  try {
+    const res = await fetch(API_URL, { method:'POST', body: JSON.stringify({action:'save', record}) });
+    const data = await res.json();
+    return data.ok;
+  } catch { return false; }
+}
+
+async function apiDelete(id) {
+  if (!API_URL) return false;
+  try {
+    const res = await fetch(API_URL, { method:'POST', body: JSON.stringify({action:'delete', id}) });
+    const data = await res.json();
+    return data.ok;
+  } catch { return false; }
+}
+
+// ══════════════════════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-tab')[['dashboard','form','records','manual','settings'].indexOf(name)].classList.add('active');
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'records') renderRecords();
+  if (name === 'form') renderCal();
+  if (name === 'settings') renderSettings();
+  if (name === 'manual') renderManual();
+}
+
+// ══════════════════════════════════════════════════════════════
+// FORM
+// ══════════════════════════════════════════════════════════════
+function buildPFA() {
+  const list = document.getElementById('pfa-list');
+  list.innerHTML = '';
+  pfaItems.forEach(([name, sub], i) => {
+    const row = document.createElement('div');
+    row.className = 'pfa-row'; row.id = 'prow-' + i;
+    row.innerHTML = `<div><div class="pfa-name">${name}</div><div class="pfa-sub">${sub}</div></div>
+      <div class="pfa-btns">
+        <button class="pb" id="pb-${i}-pass" onclick="setPFA(${i},'pass')">Pass</button>
+        <button class="pb" id="pb-${i}-fail" onclick="setPFA(${i},'fail')">Fail</button>
+        <button class="pb" id="pb-${i}-na" onclick="setPFA(${i},'na')">N/A</button>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+
+function setAllPFA(val, prefix) {
+  if (prefix === 'f') {
+    pfaState.fill(val);
+    buildPFA();
+    // Re-apply button states
+    pfaItems.forEach((_, i) => {
+      ['pass','fail','na'].forEach(v => {
+        const b = document.getElementById('pb-'+i+'-'+v);
+        if (b) b.className = 'pb' + (pfaState[i] === v ? ' '+v[0]+'-on' : '');
+      });
+      const row = document.getElementById('prow-'+i);
+      if (row) row.className = 'pfa-row' + (pfaState[i] ? ' st-'+pfaState[i] : '');
+    });
+    updateFormSummary();
+  } else {
+    editPfaState.fill(val);
+    buildEditPFA();
+  }
+}
+
+function setPFA(i, val) {
+  pfaState[i] = pfaState[i] === val ? null : val;
+  ['pass','fail','na'].forEach(v => {
+    const b = document.getElementById(`pb-${i}-${v}`);
+    b.className = 'pb' + (pfaState[i] === v ? ` ${v[0]}-on` : '');
+  });
+  document.getElementById('prow-' + i).className = 'pfa-row' + (pfaState[i] ? ' st-' + pfaState[i] : '');
+  updateFormSummary();
+}
+
+function updateFormSummary() {
+  const pass = pfaState.filter(v => v === 'pass').length;
+  const fail = pfaState.filter(v => v === 'fail').length;
+  const done = pfaState.filter(v => v !== null).length;
+  document.getElementById('s-pass').textContent = pass;
+  document.getElementById('s-fail').textContent = fail;
+  document.getElementById('s-pct').textContent = Math.round(done / 7 * 100) + '%';
+  document.getElementById('prog').style.width = Math.round(done / 7 * 100) + '%';
+}
+
+function updateBat(v) {
+  v = parseInt(v);
+  document.getElementById('bat-val').textContent = v + '%';
+  const bar = document.getElementById('bat-bar');
+  bar.style.width = v + '%';
+  bar.style.background = v >= 60 ? '#2E7D32' : v >= 30 ? '#E65100' : '#C62828';
+}
+
+function setStatus(val) {
+  statusVal = statusVal === val ? '' : val;
+  ['done','more','wait'].forEach(k => {
+    document.getElementById('st-' + k).className = 'stbtn' + (statusVal === k ? ' s-' + k : '');
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// MULTI-SELECT SERIAL (FORM)
+// ══════════════════════════════════════════════════════════════
+let selectedSerials = [];
+
+// ── Serial multi-select: form uses selectedSerials, edit uses editSerials ──
+function getSerialContext(prefix) {
+  const isEdit = prefix === 'e-';
+  return {
+    arr:     isEdit ? editSerials : selectedSerials,
+    modelId: isEdit ? 'e-model'   : 'f-model',
+    dropId:  isEdit ? 'e-serial-drop'    : 'serial-drop',
+    dispId:  isEdit ? 'e-serial-display' : 'serial-display'
+  };
+}
+
+// ── Calibrate → Course / Price visibility ─────────────────────
+function onCalibrateChange(prefix) {
+  const val = document.getElementById(prefix + '-cal').value;
+  const courseWrap = document.getElementById(prefix + '-course-wrap');
+  const priceWrap  = document.getElementById(prefix + '-price-wrap');
+  // Course: show only for ตรวจก่อน-หลังการใช้งาน
+  if (courseWrap) courseWrap.style.display = (val === 'ตรวจก่อน-หลังการใช้งาน') ? '' : 'none';
+  if (val !== 'ตรวจก่อน-หลังการใช้งาน') {
+    const cs = document.getElementById(prefix + '-course');
+    if (cs) cs.value = '';
+  }
+  // Price: show for ตรวจซ่อม and ติดตั้ง
+  if (priceWrap) priceWrap.style.display = (val === 'ตรวจซ่อม' || val === 'ติดตั้ง') ? '' : 'none';
+  if (val !== 'ตรวจซ่อม' && val !== 'ติดตั้ง') {
+    const pr = document.getElementById(prefix + '-price');
+    if (pr) pr.value = '';
+  }
+}
+
+// ── Inspector ↔ Model mapping ─────────────────────────────────
+const inspectorModelMap = {
+  'Primed Medical': ['Metiman','IStan','BabySim'],
+  'BJH Medical':    ['Leardal'],
+  'Inter Medical':  ['Ambuman'],
+};
+const modelInspectorMap = {
+  'Metiman':  'Primed Medical',
+  'IStan':    'Primed Medical',
+  'BabySim':  'Primed Medical',
+  'Leardal':  'BJH Medical',
+  'Ambuman':  'Inter Medical',
+};
+
+function onInspectorChange(prefix) {
+  const insp = document.getElementById(prefix + '-insp').value;
+  const modelSel = document.getElementById(prefix + '-model');
+  const allowedModels = inspectorModelMap[insp];
+  // Update hint
+  const hintEl = document.getElementById(prefix + '-insp-hint');
+  if (hintEl) hintEl.textContent = allowedModels ? 'รับผิดชอบ: ' + allowedModels.join(', ') : '';
+  if (!allowedModels) {
+    clearModelFilter(prefix);
+    return;
+  }
+  if (modelSel.value && !allowedModels.includes(modelSel.value)) {
+    modelSel.value = '';
+    if (prefix === 'f') { updateSerialOptions(); }
+    else { updateEditSerial(); }
+  }
+  filterModelOptions(prefix, allowedModels);
+}
+
+function onModelChange(prefix) {
+  const model = document.getElementById(prefix + '-model').value;
+  const inspSel = document.getElementById(prefix + '-insp');
+  const mappedInsp = modelInspectorMap[model];
+  if (!mappedInsp) return;
+  // Auto-set inspector if not already set or if it conflicts
+  const allowed = inspectorModelMap[inspSel.value] || null;
+  if (!inspSel.value || (allowed && !allowed.includes(model))) {
+    inspSel.value = mappedInsp;
+  }
+}
+
+function filterModelOptions(prefix, allowedModels) {
+  const modelSel = document.getElementById(prefix + '-model');
+  Array.from(modelSel.options).forEach(opt => {
+    if (!opt.value) return;
+    opt.style.display = (allowedModels && !allowedModels.includes(opt.value)) ? 'none' : '';
+    opt.disabled = (allowedModels && !allowedModels.includes(opt.value));
+  });
+  // If current selection is now hidden, reset it
+  const cur = modelSel.value;
+  if (cur && allowedModels && !allowedModels.includes(cur)) {
+    modelSel.value = '';
+    if (prefix === 'f') updateSerialOptions();
+    else updateEditSerial();
+  }
+}
+
+function clearModelFilter(prefix) {
+  const modelSel = document.getElementById(prefix + '-model');
+  Array.from(modelSel.options).forEach(opt => {
+    opt.style.display = '';
+    opt.disabled = false;
+  });
+}
+
+function updateSerialOptions() {
+  selectedSerials = [];
+  _renderSerial('');
+  _refreshSerialDisplay('');
+}
+
+function updateEditSerial() {
+  const model = document.getElementById('e-model').value;
+  const valid = serialMap[model] || [];
+  editSerials = editSerials.filter(s => valid.includes(s));
+  _renderSerial('e-');
+  _refreshSerialDisplay('e-');
+}
+
+function _renderSerial(prefix) {
+  const ctx = getSerialContext(prefix);
+  const model = document.getElementById(ctx.modelId).value;
+  const serials = serialMap[model] || [];
+  const drop = document.getElementById(ctx.dropId);
+  if (!model || !serials.length) {
+    drop.innerHTML = `<div class="msd-empty">${!model ? 'เลือก Model ก่อน' : 'ไม่มี Serial'}</div>`;
+    return;
+  }
+  drop.innerHTML = serials.map(s => {
+    const checked = ctx.arr.includes(s);
+    const esc = s.replace(/'/g,"\\'");
+    return `<div class="msd-item ${checked?'checked':''}" onclick="serialToggleItem('${prefix}','${esc}')">
+      <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation()"> ${s}
+    </div>`;
+  }).join('') +
+  `<div class="msd-actions">
+    <button class="msd-action-btn" onclick="serialSelectAll('${prefix}')">เลือกทั้งหมด</button>
+    <button class="msd-action-btn" onclick="serialClear('${prefix}')">ล้าง</button>
+  </div>`;
+}
+
+function _refreshSerialDisplay(prefix) {
+  const ctx = getSerialContext(prefix);
+  const disp = document.getElementById(ctx.dispId);
+  const model = document.getElementById(ctx.modelId).value;
+  if (!ctx.arr.length) {
+    disp.innerHTML = `<span style="color:var(--g500)">${model ? '-- เลือก Serial --' : '-- เลือก Model ก่อน --'}</span>`;
+    return;
+  }
+  disp.innerHTML = ctx.arr.map(s => {
+    const esc = s.replace(/'/g,"\\'");
+    return `<span class="serial-tag">${s}<span class="serial-tag-x" onclick="event.stopPropagation();serialRemove('${prefix}','${esc}')">×</span></span>`;
+  }).join('');
+}
+
+function serialToggleItem(prefix, val) {
+  const ctx = getSerialContext(prefix);
+  const idx = ctx.arr.indexOf(val);
+  if (idx === -1) ctx.arr.push(val); else ctx.arr.splice(idx, 1);
+  _renderSerial(prefix);
+  document.getElementById(ctx.dropId).classList.add('open');
+  document.getElementById(ctx.dispId).classList.add('open');
+  _refreshSerialDisplay(prefix);
+}
+
+function serialSelectAll(prefix) {
+  const ctx = getSerialContext(prefix);
+  const model = document.getElementById(ctx.modelId).value;
+  const serials = serialMap[model] || [];
+  ctx.arr.length = 0; serials.forEach(s => ctx.arr.push(s));
+  _renderSerial(prefix);
+  document.getElementById(ctx.dropId).classList.add('open');
+  document.getElementById(ctx.dispId).classList.add('open');
+  _refreshSerialDisplay(prefix);
+}
+
+function serialClear(prefix) {
+  const ctx = getSerialContext(prefix);
+  ctx.arr.length = 0;
+  _renderSerial(prefix);
+  document.getElementById(ctx.dropId).classList.add('open');
+  document.getElementById(ctx.dispId).classList.add('open');
+  _refreshSerialDisplay(prefix);
+}
+
+function serialRemove(prefix, val) {
+  const ctx = getSerialContext(prefix);
+  const idx = ctx.arr.indexOf(val);
+  if (idx !== -1) ctx.arr.splice(idx, 1);
+  _renderSerial(prefix);
+  _refreshSerialDisplay(prefix);
+}
+
+function toggleSerialDrop() {
+  const drop = document.getElementById('serial-drop');
+  const disp = document.getElementById('serial-display');
+  const isOpen = drop.classList.contains('open');
+  closeAllDrops();
+  if (!isOpen) { drop.classList.add('open'); disp.classList.add('open'); }
+}
+
+function toggleEditSerialDrop() {
+  const drop = document.getElementById('e-serial-drop');
+  const disp = document.getElementById('e-serial-display');
+  const isOpen = drop.classList.contains('open');
+  closeAllDrops();
+  if (!isOpen) { drop.classList.add('open'); disp.classList.add('open'); }
+}
+
+function closeAllDrops() {
+  document.querySelectorAll('.multi-select-drop').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.multi-select-display').forEach(d => d.classList.remove('open'));
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.multi-select-wrap')) closeAllDrops();
+});
+
+// Legacy aliases kept for backward compat
+function refreshSerialDisplay(displayId, arr) { _refreshSerialDisplay(displayId === 'serial-display' ? '' : 'e-'); }
+
+
+// Pending file objects (File API) waiting to be uploaded on save
+let pendingFiles = [];
+// Already-uploaded attachments {name, url, fileId}
+let uploadedAttachments = [];
+
+function addFiles(fl) {
+  Array.from(fl).forEach(f => {
+    pendingFiles.push(f);
+    renderFileItem(f.name, null, null, pendingFiles.length - 1);
+  });
+}
+
+function renderFileItem(name, url, fileId, idx) {
+  const li = document.createElement('div');
+  li.className = 'file-item';
+  li.id = 'fi-' + idx;
+  li.innerHTML = url
+    ? `<a href="${url}" target="_blank" style="color:var(--blue);text-decoration:none;font-size:12px;flex:1">📎 ${name}</a>
+       <span style="font-size:10px;color:var(--green);margin:0 6px">✓ อัปโหลดแล้ว</span>
+       <button onclick="removeAttachment(${idx})" style="background:none;border:none;color:var(--g500);cursor:pointer;font-size:13px">✕</button>`
+    : `<span style="font-size:12px;flex:1">📄 ${name}</span>
+       <span style="font-size:10px;color:var(--g500);margin:0 6px" id="fi-status-${idx}">รอบันทึก...</span>
+       <button onclick="removePending(${idx})" style="background:none;border:none;color:var(--g500);cursor:pointer;font-size:13px">✕</button>`;
+  document.getElementById('file-list').appendChild(li);
+}
+
+function removePending(idx) {
+  pendingFiles[idx] = null;
+  const el = document.getElementById('fi-' + idx);
+  if (el) el.remove();
+}
+
+function removeAttachment(idx) {
+  uploadedAttachments[idx] = null;
+  const el = document.getElementById('fi-' + idx);
+  if (el) el.remove();
+}
+
+function resetFileUI() {
+  pendingFiles = [];
+  uploadedAttachments = [];
+  document.getElementById('file-list').innerHTML = '';
+}
+
+async function uploadPendingFiles(recordId) {
+  if (!API_URL) return [];
+  const results = [];
+  const files = pendingFiles.filter(Boolean);
+  for (const f of files) {
+    try {
+      const base64 = await fileToBase64(f);
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'uploadFile', filename: f.name, mimeType: f.type || 'application/octet-stream', data: base64, recordId })
+      });
+      const data = await res.json();
+      if (data.ok) results.push({ name: data.name, url: data.url, fileId: data.fileId });
+      else results.push({ name: f.name, url: '', fileId: '' });
+    } catch { results.push({ name: f.name, url: '', fileId: '' }); }
+  }
+  return results;
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+function loadAttachmentsToUI(attachStr) {
+  uploadedAttachments = [];
+  if (!attachStr) return;
+  try {
+    const arr = JSON.parse(attachStr);
+    arr.forEach((a, i) => {
+      uploadedAttachments.push(a);
+      renderFileItem(a.name, a.url, a.fileId, i);
+    });
+  } catch {}
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// CALENDAR
+// ══════════════════════════════════════════════════════════════
+const thMonths = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const thDays = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+function renderCal() {
+  const grid = document.getElementById('cal-grid'); if (!grid) return;
+  grid.innerHTML = '';
+  document.getElementById('cal-title').textContent = thMonths[calMonth] + ' ' + (calYear + 543);
+  // Build set of all dates covered by records (including ranges)
+  const recDates = new Set();
+  records.forEach(r => {
+    if (!r.date) return;
+    const start = r.date, end = r.dateEnd || r.date;
+    let cur = new Date(start);
+    const last = new Date(end);
+    while (cur <= last) {
+      recDates.add(cur.toISOString().split('T')[0]);
+      cur.setDate(cur.getDate() + 1);
+    }
+  });
+  thDays.forEach(d => { const el = document.createElement('div'); el.className='cal-hdr-cell'; el.textContent=d; grid.appendChild(el); });
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const days = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date();
+  for (let i = 0; i < first; i++) {
+    const el = document.createElement('div'); el.className='cal-day other';
+    el.textContent = new Date(calYear, calMonth, -first + i + 1).getDate(); grid.appendChild(el);
+  }
+  for (let d = 1; d <= days; d++) {
+    const el = document.createElement('div');
+    const pad = n => String(n).padStart(2,'0');
+    const ds = calYear + '-' + pad(calMonth+1) + '-' + pad(d);
+    const isToday = d===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear();
+    const isSel = selectedDate&&d===selectedDate.d&&calMonth===selectedDate.m&&calYear===selectedDate.y;
+    const startVal = document.getElementById('f-date-start')?.value;
+    const endVal   = document.getElementById('f-date-end')?.value;
+    const inRange  = startVal && endVal && ds >= startVal && ds <= endVal;
+    const isRangeStart = startVal && ds === startVal;
+    const isRangeEnd   = endVal && ds === endVal;
+    el.className = 'cal-day'
+      + (isRangeStart||isRangeEnd ? ' selected' : inRange ? ' in-range' : isToday ? ' today' : '')
+      + (recDates.has(ds) ? ' has-record' : '');
+    el.textContent = d;
+    el.onclick = () => {
+      selectedDate={d,m:calMonth,y:calYear};
+      const start = document.getElementById('f-date-start').value;
+      if (!start || (start && document.getElementById('f-date-end').value)) {
+        document.getElementById('f-date-start').value = ds;
+        document.getElementById('f-date-end').value = '';
+        document.getElementById('date-range-display').textContent = 'เลือกวันสิ้นสุด...';
+      } else {
+        if (ds >= start) {
+          document.getElementById('f-date-end').value = ds;
+          updateDateRangeDisplay('f-date-start','f-date-end','date-range-display');
+        } else {
+          document.getElementById('f-date-start').value = ds;
+          document.getElementById('f-date-end').value = '';
+          document.getElementById('date-range-display').textContent = 'เลือกวันสิ้นสุด...';
+        }
+      }
+      renderCal();
+    };
+    grid.appendChild(el);
+  }
+}
+
+function changeMonth(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCal();
+}
+
+// ══════════════════════════════════════════════════════════════
+// SAVE RECORD
+// ══════════════════════════════════════════════════════════════
+async function saveRecord() {
+  const dateStart = document.getElementById('f-date-start').value;
+  const dateEnd   = document.getElementById('f-date-end').value || dateStart;
+  if (!dateStart) { showToast('กรุณาเลือกวันที่เริ่มต้น', 'error'); return; }
+  if (dateEnd < dateStart) { showToast('วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น', 'error'); return; }
+  const pass = pfaState.filter(v => v === 'pass').length;
+  const fail = pfaState.filter(v => v === 'fail').length;
+  const na   = pfaState.filter(v => v === 'na').length;
+  const recId = editingId || Date.now();
+
+  setLoading(true);
+  document.getElementById('submit-btn').disabled = true;
+
+  // Upload pending files to Drive
+  const hasPending = pendingFiles.filter(Boolean).length > 0;
+  if (hasPending) showToast('กำลังอัปโหลดไฟล์แนบ...', '');
+  const newUploads = API_URL ? await uploadPendingFiles(recId) : [];
+  const allAttachments = [...uploadedAttachments.filter(Boolean), ...newUploads];
+
+  // Update file UI to show upload results
+  newUploads.forEach((a, i) => {
+    const el = document.getElementById('fi-status-' + (uploadedAttachments.filter(Boolean).length + i));
+    if (el) el.textContent = a.url ? '✓ อัปโหลดแล้ว' : '⚠ ไม่สำเร็จ';
+  });
+
+  const record = {
+    id: recId,
+    date: dateStart, dateEnd: dateEnd,
+    dateMulti: document.getElementById('f-date-multi').value || '',
+    calibrate: document.getElementById('f-cal').value,
+    course: document.getElementById('f-course').value,
+    inspector: document.getElementById('f-insp').value,
+    model: document.getElementById('f-model').value,
+    serial: selectedSerials.join(', '),
+    pfa: [...pfaState], pass, fail, na,
+    battery: parseInt(document.getElementById('bat-range').value),
+    status: statusVal,
+    problem: document.getElementById('f-prob').value,
+    service: document.getElementById('f-svc').value,
+    price: document.getElementById('f-price').value || '',
+    attachments: JSON.stringify(allAttachments),
+    savedAt: new Date().toISOString()
+  };
+
+  // Save local
+  if (editingId) {
+    const idx = records.findIndex(r => r.id === editingId);
+    if (idx !== -1) records[idx] = record; else records.unshift(record);
+    editingId = null;
+  } else { records.unshift(record); }
+  localStorage.setItem('manikin_records', JSON.stringify(records));
+
+  // Sync to Sheets
+  if (API_URL) {
+    const ok = await apiSave(record);
+    showToast(ok ? 'บันทึกและ Sync สำเร็จ ✓' : 'บันทึก Local สำเร็จ (Sync ไม่ได้)', ok ? 'success' : '');
+  } else { showToast('บันทึก Local สำเร็จ ✓ (ยังไม่เชื่อม Sheets)', 'success'); }
+
+  setLoading(false);
+  document.getElementById('submit-btn').disabled = false;
+  resetForm();
+  renderDashboard(); renderCal();
+}
+
+function resetForm() {
+  ['f-cal','f-course','f-insp','f-model'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-price').value = '';
+  onCalibrateChange('f');
+  document.getElementById('f-date-start').value = '';
+  document.getElementById('f-date-end').value = '';
+  document.getElementById('f-date-multi').value = '';
+  const fLabel = document.getElementById('f-datepick-label');
+  fLabel.textContent = 'คลิกเลือกวันที่...';
+  fLabel.style.color = 'var(--g500)';
+  document.getElementById('f-datepick-trigger').classList.remove('has-value');
+  selectedSerials.length = 0;
+  updateSerialOptions();
+  document.getElementById('f-prob').value = '';
+  document.getElementById('f-svc').value = '';
+  resetFileUI();
+  document.getElementById('bat-range').value = 80; updateBat(80);
+  pfaState.fill(null); buildPFA(); statusVal = '';
+  ['done','more','wait'].forEach(k => document.getElementById('st-'+k).className = 'stbtn');
+  updateFormSummary();
+}
+
+// ══════════════════════════════════════════════════════════════
+// RECORDS TABLE
+// ══════════════════════════════════════════════════════════════
+function renderRecords(data) {
+  const body = document.getElementById('records-body');
+  const rows = data || getFiltered();
+  if (!rows.length) { body.innerHTML='<tr><td colspan="12"><div class="empty-state"><div style="font-size:40px;margin-bottom:10px">📂</div><p>ยังไม่มีข้อมูล</p></div></td></tr>'; return; }
+  body.innerHTML = rows.map((r, i) => `<tr>
+    <td style="color:var(--g500);font-size:11px">${i+1}</td>
+    <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${r.date}${r.dateEnd && r.dateEnd !== r.date ? '<br><span style="color:var(--g500)">→ '+r.dateEnd+'</span>' : ''}</td>
+    <td style="font-size:12px">${r.calibrate||'-'}</td>
+    <td><span class="badge" style="background:var(--blue-l);color:var(--blue)">${r.course||'-'}</span></td>
+    <td style="font-size:12px">${r.inspector||'-'}</td>
+    <td style="font-weight:600;font-size:12px">${r.model||'-'}</td>
+    <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--g500)">${r.serial||'-'}</td>
+    <td><span class="badge badge-pass">${r.pass}</span></td>
+    <td><span class="badge ${r.fail>0?'badge-fail':'badge-na'}">${r.fail}</span></td>
+    <td><div style="display:flex;align-items:center;gap:5px"><div style="width:36px;height:5px;background:var(--g200);border-radius:3px;overflow:hidden"><div style="height:100%;width:${r.battery}%;background:${r.battery>=60?'#2E7D32':r.battery>=30?'#E65100':'#C62828'};border-radius:3px"></div></div><span style="font-size:11px;font-family:'IBM Plex Mono',monospace">${r.battery}%</span></div></td>
+    <td><span class="badge badge-${statusBadge[r.status]||'na'}">${statusMap[r.status]||'-'}</span></td>
+    <td><div class="row-actions">
+      <button class="row-btn" onclick="viewRecord(${r.id})" title="ดู">👁</button>
+      <button class="row-btn" onclick="openEdit(${r.id})" title="แก้ไข" style="color:var(--blue)">✏️</button>
+      <button class="row-btn del" onclick="deleteRecord(${r.id})" title="ลบ">🗑</button>
+    </div></td>
+  </tr>`).join('');
+}
+
+function getFiltered() {
+  const q = (document.getElementById('search-input')?.value||'').toLowerCase();
+  const st = document.getElementById('filter-status')?.value||'';
+  const mdl = document.getElementById('filter-model')?.value||'';
+  const ins = document.getElementById('filter-insp')?.value||'';
+  return [...records].filter(r =>
+    (!q||[r.model,r.serial,r.inspector,r.course].some(v=>(v||'').toLowerCase().includes(q)))&&
+    (!st||r.status===st)&&(!mdl||r.model===mdl)&&(!ins||r.inspector===ins)
+  ).sort((a,b) => {
+    const va=a[sortField]||'',vb=b[sortField]||'';
+    return va<vb?-sortDir:va>vb?sortDir:0;
+  });
+}
+
+function filterRecords() { renderRecords(); }
+function sortBy(f) { sortDir = sortField===f?-sortDir:-1; sortField=f; renderRecords(); }
+
+async function deleteRecord(id) {
+  if (!confirm('ลบรายการนี้?')) return;
+  records = records.filter(r => r.id !== id);
+  localStorage.setItem('manikin_records', JSON.stringify(records));
+  if (API_URL) apiDelete(id);
+  renderRecords(); renderCal(); renderDashboard();
+  showToast('ลบรายการแล้ว');
+}
+
+async function clearAll() {
+  if (!confirm('ลบข้อมูลทั้งหมดในเครื่องนี้?')) return;
+  records = []; localStorage.setItem('manikin_records', JSON.stringify(records));
+  renderRecords(); renderDashboard(); renderCal(); showToast('ล้างข้อมูล Local แล้ว');
+}
+
+function viewRecord(id) {
+  const r = records.find(x => x.id === id); if (!r) return;
+  document.getElementById('modal-title').textContent = `${r.model||'Manikin'} — ${r.date}`;
+  const pfaRes = pfaItems.map(([n],i) => `${n}: <b style="color:${r.pfa?.[i]==='pass'?'#2E7D32':r.pfa?.[i]==='fail'?'#C62828':'#9E9E9E'}">${(r.pfa?.[i]||'-').toUpperCase()}</b>`).join('<br>');
+  document.getElementById('modal-body').innerHTML = [
+    ['วันที่', r.dateMulti ? r.dateMulti.split(',').map(formatDateTH).join(', ') : r.dateEnd && r.dateEnd !== r.date ? `${formatDateTH(r.date)} → ${formatDateTH(r.dateEnd)}` : formatDateTH(r.date)],['Calibrate',r.calibrate||'-'],['Course',r.course||'-'],
+    ['Inspector',r.inspector||'-'],['Model',r.model||'-'],['Serial No.',r.serial||'-'],
+    ['Pass/Fail/N/A',`${r.pass} / ${r.fail} / ${r.na}`],['Battery',r.battery+'%'],['Status',statusMap[r.status]||'-'],
+    ...(r.price ? [['ราคา / ค่าบริการ', parseFloat(r.price).toLocaleString('th-TH') + ' บาท']] : []),
+  ].map(([l,v])=>`<div class="detail-row"><div class="detail-lbl">${l}</div><div class="detail-val">${v}</div></div>`).join('')
+  +`<div class="detail-row"><div class="detail-lbl">ผลทดสอบ</div><div class="detail-val" style="font-size:12px;line-height:1.8">${pfaRes}</div></div>`
+  +(r.problem?`<div class="detail-row"><div class="detail-lbl">อาการเสีย</div><div class="detail-val">${r.problem}</div></div>`:'')
+  +(r.service?`<div class="detail-row"><div class="detail-lbl">รายละเอียดบริการ</div><div class="detail-val">${r.service}</div></div>`:'')
+  +(r.service?`<div class="detail-row"><div class="detail-lbl">รายละเอียดบริการ</div><div class="detail-val">${r.service}</div></div>`:'')
+  +(()=>{
+    let fileHTML = '';
+    try {
+      const arr = r.attachments ? JSON.parse(r.attachments) : [];
+      if (arr.length) {
+        fileHTML = arr.map(a => a.url
+          ? `<a href="${a.url}" target="_blank" style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--blue-l);border-radius:var(--rs);color:var(--blue);font-size:12px;text-decoration:none;margin-bottom:4px">
+               <span style="font-size:16px">📎</span><span style="flex:1">${a.name}</span><span style="font-size:10px;opacity:.7">เปิดไฟล์ →</span></a>`
+          : `<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--g50);border-radius:var(--rs);font-size:12px;color:var(--g700);margin-bottom:4px">
+               <span style="font-size:16px">📄</span><span>${a.name}</span></div>`
+        ).join('');
+      }
+    } catch {}
+    return `<div class="detail-row" style="flex-direction:column;align-items:flex-start">
+      <div class="detail-lbl" style="margin-bottom:8px">ไฟล์แนบ</div>
+      <div style="width:100%">
+        ${fileHTML || '<div style="font-size:12px;color:var(--g400);padding:8px 0">ยังไม่มีไฟล์แนบ</div>'}
+        <label style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1.5px dashed var(--g300);border-radius:var(--rs);cursor:pointer;font-size:12px;color:var(--g500);margin-top:4px;transition:all .12s" onmouseenter="this.style.borderColor='var(--blue-m)';this.style.color='var(--blue)'" onmouseleave="this.style.borderColor='var(--g300)';this.style.color='var(--g500)'">
+          <span>📎</span> แนบไฟล์เพิ่มเติม
+          <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="modalUploadFiles(this.files,${r.id})">
+        </label>
+        <div id="modal-file-status" style="font-size:11px;color:var(--g500);margin-top:6px"></div>
+      </div>
+    </div>`;
+  })()
+  +`<div style="display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--g200)">
+      <button onclick="document.getElementById('modal-overlay').classList.remove('open');openEdit(${r.id})" style="flex:1;height:38px;background:var(--navy);color:#fff;border:none;border-radius:var(--rs);font-size:13px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif">✏️ แก้ไขข้อมูล</button>
+      <button onclick="if(confirm('ลบรายการนี้?')){document.getElementById('modal-overlay').classList.remove('open');deleteRecord(${r.id})}" style="height:38px;padding:0 16px;background:var(--red-l);color:var(--red);border:1px solid var(--red);border-radius:var(--rs);font-size:13px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif">🗑 ลบ</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(e) { if(!e||e.target===document.getElementById('modal-overlay')) document.getElementById('modal-overlay').classList.remove('open'); }
+
+async function modalUploadFiles(fl, recordId) {
+  if (!fl.length) return;
+  const statusEl = document.getElementById('modal-file-status');
+  if (statusEl) statusEl.textContent = 'กำลังอัปโหลด ' + fl.length + ' ไฟล์...';
+  const r = records.find(x => x.id === recordId);
+  if (!r) return;
+  let existing = [];
+  try { existing = r.attachments ? JSON.parse(r.attachments) : []; } catch {}
+  const newFiles = [];
+  for (const f of Array.from(fl)) {
+    if (API_URL) {
+      try {
+        const base64 = await fileToBase64(f);
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'uploadFile', filename: f.name, mimeType: f.type || 'application/octet-stream', data: base64, recordId })
+        });
+        const data = await res.json();
+        if (data.ok) newFiles.push({ name: data.name, url: data.url, fileId: data.fileId });
+        else newFiles.push({ name: f.name, url: '', fileId: '' });
+      } catch { newFiles.push({ name: f.name, url: '', fileId: '' }); }
+    } else {
+      newFiles.push({ name: f.name, url: '', fileId: '' });
+    }
+  }
+  const allAttachments = [...existing, ...newFiles];
+  r.attachments = JSON.stringify(allAttachments);
+  r.savedAt = new Date().toISOString();
+  const idx = records.findIndex(x => x.id === recordId);
+  if (idx !== -1) records[idx] = r;
+  localStorage.setItem('manikin_records', JSON.stringify(records));
+  if (API_URL) await apiSave(r);
+  // Re-open modal with updated data
+  document.getElementById('modal-overlay').classList.remove('open');
+  setTimeout(() => viewRecord(recordId), 100);
+  showToast('อัปโหลดไฟล์สำเร็จ ✓', 'success');
+}
+
+// ══════════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════════
+let chartStatus=null, chartPass=null;
+
+function renderDashboard() {
+  document.getElementById('kpi-total').textContent = records.length;
+  document.getElementById('kpi-done').textContent = records.filter(r=>r.status==='done').length;
+  document.getElementById('kpi-pending').textContent = records.filter(r=>r.status==='more'||r.status==='wait').length;
+  const bats = records.filter(r=>r.battery!=null).map(r=>r.battery);
+  document.getElementById('kpi-bat').textContent = bats.length ? Math.round(bats.reduce((a,b)=>a+b,0)/bats.length)+'%' : '—';
+
+  const rb = document.getElementById('dash-recent-body');
+  const recent = [...records].slice(0,6);
+  rb.innerHTML = !recent.length ? '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--g500)">ยังไม่มีข้อมูล</td></tr>' :
+    recent.map(r=>`<tr>
+      <td style="font-size:12px">${r.dateEnd && r.dateEnd !== r.date ? r.date+'<br><span style="color:var(--g500);font-size:10px">→'+r.dateEnd+'</span>' : r.date}</td>
+      <td style="font-weight:600;font-size:12px">${r.model||'-'}</td>
+      <td style="font-size:11px;color:var(--g500)">${r.serial||'-'}</td>
+      <td style="font-size:12px">${r.inspector||'-'}</td>
+      <td><span class="badge badge-${statusBadge[r.status]||'na'}">${statusMap[r.status]||'-'}</span></td>
+      <td style="font-size:12px">${r.battery}%</td>
+    </tr>`).join('');
+
+  if (chartStatus) chartStatus.destroy();
+  chartStatus = new Chart(document.getElementById('chart-status').getContext('2d'), {
+    type:'doughnut',
+    data:{ labels:['เสร็จสมบูรณ์','ยังต้องซ่อมต่อ','รออะไหล่'],
+      datasets:[{data:[records.filter(r=>r.status==='done').length,records.filter(r=>r.status==='more').length,records.filter(r=>r.status==='wait').length],
+      backgroundColor:['#2E7D32','#E65100','#1565C0'],borderWidth:0,hoverOffset:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,padding:8}}}}
+  });
+
+  const passRates = pfaItems.map(([_],i) => {
+    const tot = records.filter(r=>r.pfa&&r.pfa[i]!==null).length;
+    const pass = records.filter(r=>r.pfa&&r.pfa[i]==='pass').length;
+    return tot ? Math.round(pass/tot*100) : 0;
+  });
+  if (chartPass) chartPass.destroy();
+  chartPass = new Chart(document.getElementById('chart-pass').getContext('2d'), {
+    type:'bar',
+    data:{ labels:pfaItems.map(([n])=>n.length>13?n.slice(0,13)+'…':n),
+      datasets:[{label:'Pass %',data:passRates,backgroundColor:'#1565C0',borderRadius:4,barThickness:16}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      scales:{x:{max:100,ticks:{callback:v=>v+'%',font:{size:10}},grid:{color:'#f5f5f5'}},y:{ticks:{font:{size:10}}}},
+      plugins:{legend:{display:false}}}
+  });
+
+  const inspMap = {};
+  records.forEach(r=>{ const k=r.inspector||'ไม่ระบุ'; if(!inspMap[k])inspMap[k]={total:0,done:0}; inspMap[k].total++; if(r.status==='done')inspMap[k].done++; });
+  document.getElementById('insp-summary').innerHTML = Object.entries(inspMap).map(([k,v])=>`
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="font-size:12px;min-width:110px;color:var(--g700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${k}</div>
+      <div style="flex:1;height:5px;background:var(--g200);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${Math.round(v.done/v.total*100)}%;background:var(--blue-m);border-radius:3px"></div>
+      </div>
+      <div style="font-size:11px;color:var(--g500);min-width:52px;text-align:right">${v.done}/${v.total}</div>
+    </div>`).join('') || '<p style="font-size:13px;color:var(--g500)">ยังไม่มีข้อมูล</p>';
+
+  renderDashboardCal();
+  renderHistory('all', null, 8);
+}
+
+// ── CALIBRATE CALENDAR ─────────────────────────────────────
+const calTypeColor = {
+  'ตรวจก่อน-หลังการใช้งาน': '#1565C0',
+  'ตรวจซ่อม':                '#C62828',
+  'ตรวจตามระยะ':             '#2E7D32',
+  'ติดตั้ง':                 '#E65100'
+};
+const calTypeBg = {
+  'ตรวจก่อน-หลังการใช้งาน': '#E3F2FD',
+  'ตรวจซ่อม':                '#FFEBEE',
+  'ตรวจตามระยะ':             '#E8F5E9',
+  'ติดตั้ง':                 '#FFF3E0'
+};
+let dcalYear = new Date().getFullYear(), dcalMonth = new Date().getMonth();
+
+function renderDashboardCal() {
+  if (!document.getElementById('dcal-grid')) return;
+  const thM = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  const thD = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+  document.getElementById('dcal-title').textContent = thM[dcalMonth] + ' ' + (dcalYear + 543);
+
+  // Build date → records map (cover full range + multi-dates)
+  const dateMap = {};
+  const addToMap = (ds, r) => {
+    if (!dateMap[ds]) dateMap[ds] = [];
+    // Avoid duplicate if same record spans multiple days
+    if (!dateMap[ds].find(x => x.id === r.id)) dateMap[ds].push(r);
+  };
+  records.forEach(r => {
+    if (!r.date) return;
+    // Multi-select dates
+    if (r.dateMulti) {
+      r.dateMulti.split(',').filter(Boolean).forEach(ds => addToMap(ds, r));
+      return;
+    }
+    // Date range: fill every day from start to end
+    const start = new Date(r.date);
+    const end   = new Date(r.dateEnd || r.date);
+    for (let cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 1)) {
+      const ds = cur.toISOString().split('T')[0];
+      addToMap(ds, r);
+    }
+  });
+
+  const grid = document.getElementById('dcal-grid');
+  grid.innerHTML = '';
+
+  // Day headers
+  thD.forEach(d => {
+    const el = document.createElement('div');
+    el.style.cssText = 'text-align:center;font-size:11px;font-weight:700;color:var(--g500);padding:4px 0';
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+
+  const first = new Date(dcalYear, dcalMonth, 1).getDay();
+  const days  = new Date(dcalYear, dcalMonth + 1, 0).getDate();
+  const today = new Date();
+  const pad = n => String(n).padStart(2,'0');
+
+  // Blank cells
+  for (let i = 0; i < first; i++) {
+    const el = document.createElement('div');
+    el.style.cssText = 'min-height:54px';
+    grid.appendChild(el);
+  }
+
+  // Day cells
+  for (let d = 1; d <= days; d++) {
+    const ds = `${dcalYear}-${pad(dcalMonth+1)}-${pad(d)}`;
+    const recs = dateMap[ds] || [];
+    const isToday = d===today.getDate()&&dcalMonth===today.getMonth()&&dcalYear===today.getFullYear();
+
+    // Determine colors from calibrate types on this date
+    const types = [...new Set(recs.map(r=>r.calibrate).filter(Boolean))];
+    let bgColor = '';
+    if (types.length === 1) {
+      bgColor = calTypeBg[types[0]] || '#F5F5F5';
+    } else if (types.length > 1) {
+      bgColor = '#F3E5F5';
+    }
+
+    // Check if any record spans this date (not just starts here)
+    const isRangeMiddle = recs.length > 0 && recs.some(r => r.date !== ds && (r.dateEnd||r.date) !== ds);
+    const isRangeStart  = recs.some(r => r.date === ds && (r.dateEnd||r.date) !== ds);
+    const isRangeEnd    = recs.some(r => (r.dateEnd||r.date) === ds && r.date !== ds);
+
+    const el = document.createElement('div');
+    const color0 = calTypeColor[types[0]] || '#888';
+    const borderStyle = isToday ? '2px solid #1565C0'
+      : (isRangeStart || isRangeEnd) ? '2px solid ' + color0
+      : recs.length ? '1px solid rgba(0,0,0,.08)' : 'transparent';
+    const opacityVal = (isRangeMiddle && !isRangeStart && !isRangeEnd) ? '.75' : '1';
+    el.style.cssText = 'min-height:54px;border-radius:8px;padding:4px 5px;cursor:'+(recs.length?'pointer':'default')+';background:'+(bgColor||'transparent')+';border:'+borderStyle+';opacity:'+opacityVal+';transition:opacity .1s;position:relative';
+
+    // Day number
+    const dayDiv = document.createElement('div');
+    dayDiv.style.cssText = 'font-size:12px;font-weight:'+(isToday?'700':'500')+';color:'+(isToday?'#1565C0':recs.length?'#212121':'var(--g700)')+';line-height:1.2';
+    dayDiv.textContent = d;
+    el.appendChild(dayDiv);
+
+    if (recs.length) {
+      const info = document.createElement('div');
+      info.style.cssText = 'margin-top:3px;display:flex;flex-direction:column;gap:2px';
+      // Calibrate type labels
+      types.slice(0,2).forEach(function(t) {
+        const tDiv = document.createElement('div');
+        tDiv.style.cssText = 'font-size:9px;font-weight:600;color:'+(calTypeColor[t]||'#666')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:1.4';
+        tDiv.textContent = t.replace('ตรวจก่อน-หลังการใช้งาน','ก่อน-หลังใช้').replace('ตรวจตามระยะ','ตามระยะ');
+        info.appendChild(tDiv);
+      });
+      // Range start/end badge
+      if (isRangeStart || isRangeEnd) {
+        const badge = document.createElement('div');
+        badge.style.cssText = 'font-size:9px;color:'+color0+';font-weight:500';
+        badge.textContent = isRangeStart ? '▶ เริ่ม' : '◼ สิ้นสุด';
+        info.appendChild(badge);
+      }
+      // Count
+      const cnt = document.createElement('div');
+      cnt.style.cssText = 'font-size:9px;color:var(--g500)';
+      cnt.textContent = recs.length + ' รายการ';
+      info.appendChild(cnt);
+      el.appendChild(info);
+    }
+
+    if (recs.length) {
+      el.onmouseenter = () => el.style.opacity = '.8';
+      el.onmouseleave = () => el.style.opacity = opacityVal;
+      el.onclick = () => showDcalTooltip(ds, recs);
+    }
+    grid.appendChild(el);
+  }
+}
+
+function showDcalTooltip(ds, recs) {
+  const tip = document.getElementById('dcal-tooltip');
+  const thDate = new Date(ds+'T00:00:00').toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
+  tip.style.display = 'block';
+  tip.innerHTML = `<div style="font-size:13px;font-weight:700;color:var(--g900);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--g200)">${thDate} — ${recs.length} รายการ</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+    ${recs.map(r => {
+      const color = calTypeColor[r.calibrate] || '#888';
+      const bg = calTypeBg[r.calibrate] || '#f5f5f5';
+      const isRange = r.dateEnd && r.dateEnd !== r.date;
+      const isMulti = !!r.dateMulti;
+      let dateLabel = '';
+      if (isMulti) {
+        dateLabel = `<div style="font-size:10px;color:${color};margin-top:2px">หลายวัน: ${r.dateMulti.split(',').length} วัน</div>`;
+      } else if (isRange) {
+        const days = Math.round((new Date(r.dateEnd)-new Date(r.date))/86400000)+1;
+        dateLabel = `<div style="font-size:10px;color:${color};margin-top:2px">${formatDateTH(r.date)} → ${formatDateTH(r.dateEnd)} (${days} วัน)</div>`;
+      }
+      return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:6px;border-left:3px solid ${color};background:${bg}">
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:700;color:${color}">${r.calibrate||'-'}</div>
+          ${dateLabel}
+          <div style="font-size:12px;color:var(--g900);margin-top:3px">${r.model||'-'} ${r.serial?'<span style="color:var(--g500);font-size:11px">'+r.serial+'</span>':''}</div>
+          <div style="font-size:11px;color:var(--g500);margin-top:1px">${r.inspector||''} ${r.course?'· '+r.course:''}</div>
+        </div>
+        <span class="badge badge-${statusBadge[r.status]||'na'}" style="flex-shrink:0">${statusMap[r.status]||'-'}</span>
+      </div>`;
+    }).join('')}
+    </div>`;
+  tip.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function dcalPrev() {
+  dcalMonth--;
+  if (dcalMonth < 0) { dcalMonth = 11; dcalYear--; }
+  document.getElementById('dcal-tooltip').style.display = 'none';
+  renderDashboardCal();
+}
+function dcalNext() {
+  dcalMonth++;
+  if (dcalMonth > 11) { dcalMonth = 0; dcalYear++; }
+  document.getElementById('dcal-tooltip').style.display = 'none';
+  renderDashboardCal();
+}
+
+let dcalPickerY = 0;
+const dcalThShort = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+function dcalOpenPicker(){
+  dcalPickerY = dcalYear;
+  dcalRenderPicker();
+  document.getElementById('dcal-picker').style.display = 'block';
+}
+function dcalClosePicker(){ document.getElementById('dcal-picker').style.display = 'none'; }
+function dcalPickerYear(dir){
+  dcalPickerY += dir;
+  dcalRenderPicker();
+}
+function dcalRenderPicker(){
+  document.getElementById('dcal-picker-year').textContent = dcalPickerY + 543 + ' (พ.ศ.)';
+  const grid = document.getElementById('dcal-picker-months');
+  grid.innerHTML = '';
+  dcalThShort.forEach(function(m, i) {
+    const isActive = dcalPickerY === dcalYear && i === dcalMonth;
+    const btn = document.createElement('button');
+    btn.textContent = m;
+    btn.style.cssText = 'padding:9px 4px;border-radius:6px;border:1px solid '+(isActive?'var(--navy)':'transparent')+';background:'+(isActive?'var(--navy)':'var(--g50)')+';color:'+(isActive?'#fff':'var(--g900)')+';font-size:12px;font-weight:500;cursor:pointer;font-family:\'Sarabun\',sans-serif;transition:all .12s;text-align:center';
+    btn.onmouseenter = function(){ if(!isActive) this.style.background='var(--blue-l)'; };
+    btn.onmouseleave = function(){ if(!isActive) this.style.background='var(--g50)'; };
+    btn.onclick = function(){ dcalPickerSelect(i); };
+    grid.appendChild(btn);
+  });
+}
+function dcalPickerSelect(month){
+  dcalYear = dcalPickerY;
+  dcalMonth = month;
+  dcalClosePicker();
+  document.getElementById('dcal-tooltip').style.display = 'none';
+  renderDashboardCal();
+}
+
+// ══════════════════════════════════════════════════════════════
+// EXPORT EXCEL
+// ══════════════════════════════════════════════════════════════
+function exportExcel() {
+  if (!records.length) { showToast('ไม่มีข้อมูล', 'error'); return; }
+  const wb = XLSX.utils.book_new();
+  const headers = ['ID','วันที่เริ่ม','วันที่สิ้นสุด','จำนวนวัน','Calibrate','Course','Inspector','Model','Serial No.',
+    ...pfaItems.map(([n])=>n),'Pass','Fail','N/A','Battery (%)','Status','อาการเสีย','รายละเอียดบริการ','ราคา (บาท)','บันทึกเมื่อ'];
+  const rows = records.map((r,i) => {
+    const days = r.date && r.dateEnd ? Math.round((new Date(r.dateEnd)-new Date(r.date))/86400000)+1 : 1;
+    return [i+1, r.date, r.dateEnd||r.date, days, r.calibrate||'', r.course||'', r.inspector||'', r.model||'', r.serial||'',
+      ...pfaItems.map((_,idx)=>(r.pfa?.[idx]||'-').toUpperCase()),
+      r.pass, r.fail, r.na, r.battery, statusMap[r.status]||'', r.problem||'', r.service||'', r.price||'',
+      new Date(r.savedAt).toLocaleString('th-TH')];
+  });
+  const ws1 = XLSX.utils.aoa_to_sheet([headers,...rows]);
+  ws1['!cols'] = [6,12,12,8,22,8,18,12,24,...pfaItems.map(()=>12),7,7,7,10,16,30,30,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Service Records');
+
+  const sumData = [
+    ['สรุปผล Manikin Service System'],[''],
+    ['รายการทั้งหมด',records.length],
+    ['เสร็จสมบูรณ์',records.filter(r=>r.status==='done').length],
+    ['ยังต้องซ่อมต่อ',records.filter(r=>r.status==='more').length],
+    ['รออะไหล่',records.filter(r=>r.status==='wait').length],[''],
+    ['Pass Rate รายรายการ'],['รายการ','Pass','Fail','N/A','Pass Rate %'],
+    ...pfaItems.map(([n],i)=>{
+      const p=records.filter(r=>r.pfa?.[i]==='pass').length;
+      const f=records.filter(r=>r.pfa?.[i]==='fail').length;
+      const na=records.filter(r=>r.pfa?.[i]==='na').length;
+      const t=p+f+na;
+      return [n,p,f,na,t?Math.round(p/t*100)+'%':'-'];
+    }),[''],
+    ['Export เมื่อ',new Date().toLocaleString('th-TH')]
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sumData), 'Summary');
+  XLSX.writeFile(wb, `Manikin_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('Export Excel สำเร็จ ✓', 'success');
+}
+
+// ══════════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════════
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show' + (type?' '+type:'');
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 3000);
+}
+function setLoading(v) { document.getElementById('loading-overlay').className = 'loading-overlay' + (v?' show':''); }
+
+// ══════════════════════════════════════════════════════════════
+// EDIT MODAL
+// ══════════════════════════════════════════════════════════════
+let editingRecord = null;
+let editPfaState = Array(7).fill(null);
+let editStatusVal = '';
+let editSerials = [];
+
+function openEdit(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  editingRecord = r;
+
+  // Fill basic fields
+  document.getElementById('e-date-start').value = r.date || '';
+  document.getElementById('e-date-end').value = r.dateEnd || r.date || '';
+  document.getElementById('e-date-multi').value = r.dateMulti || '';
+  // Update popup trigger display
+  const s = r.date, e = r.dateEnd || r.date, multi = r.dateMulti || '';
+  const eLabel = document.getElementById('e-datepick-label');
+  const eTrigger = document.getElementById('e-datepick-trigger');
+  if (multi) {
+    const arr = multi.split(',').filter(Boolean);
+    eLabel.textContent = arr.length <= 3 ? arr.map(formatDateTH).join(', ') : `${formatDateTH(arr[0])} ... ${formatDateTH(arr[arr.length-1])} (${arr.length} วัน)`;
+    eLabel.style.color = 'var(--g900)'; eTrigger.classList.add('has-value');
+  } else if (s) {
+    const days = s !== e ? Math.round((new Date(e)-new Date(s))/86400000)+1 : 0;
+    eLabel.textContent = s === e ? formatDateTH(s) : `${formatDateTH(s)}  →  ${formatDateTH(e)}  (${days} วัน)`;
+    eLabel.style.color = 'var(--g900)';
+    eTrigger.classList.add('has-value');
+  } else {
+    eLabel.textContent = 'คลิกเลือกวันที่...';
+    eLabel.style.color = 'var(--g500)';
+    eTrigger.classList.remove('has-value');
+  }
+  document.getElementById('e-cal').value = r.calibrate || '';
+  onCalibrateChange('e');
+  document.getElementById('e-course').value = r.course || '';
+  document.getElementById('e-insp').value = r.inspector || '';
+  onInspectorChange('e');
+  document.getElementById('e-model').value = r.model || '';
+
+  // Serial multi-select
+  editSerials = r.serial ? r.serial.split(', ').filter(Boolean) : [];
+  _renderSerial('e-');
+  _refreshSerialDisplay('e-');
+
+  // PFA
+  editPfaState = r.pfa ? [...r.pfa] : Array(7).fill(null);
+  buildEditPFA();
+
+  // Battery
+  document.getElementById('e-bat-range').value = r.battery || 80;
+  updateEditBat(r.battery || 80);
+
+  // Status
+  editStatusVal = r.status || '';
+  ['done','more','wait'].forEach(k => {
+    document.getElementById('e-st-' + k).className = 'stbtn' + (editStatusVal === k ? ' s-' + k : '');
+  });
+
+  // Text
+  document.getElementById('e-prob').value = r.problem || '';
+  document.getElementById('e-svc').value = r.service || '';
+  document.getElementById('e-price').value = r.price || '';
+
+  // Attachments — reset and reload existing
+  resetFileUI();
+  if (r.attachments) loadAttachmentsToUI(r.attachments);
+
+  document.getElementById('edit-overlay').classList.add('open');
+}
+
+function buildEditPFA() {
+  const list = document.getElementById('e-pfa-list');
+  list.innerHTML = '';
+  pfaItems.forEach(([name, sub], i) => {
+    const row = document.createElement('div');
+    row.className = 'edit-pfa-row' + (editPfaState[i] ? ' st-' + editPfaState[i] : '');
+    row.id = 'eprow-' + i;
+    row.innerHTML = `<div style="flex:1"><div class="pfa-name">${name}</div><div class="pfa-sub">${sub}</div></div>
+      <div class="pfa-btns">
+        <button class="pb ${editPfaState[i]==='pass'?'p-on':''}" id="epb-${i}-pass" onclick="setEditPFA(${i},'pass')">Pass</button>
+        <button class="pb ${editPfaState[i]==='fail'?'f-on':''}" id="epb-${i}-fail" onclick="setEditPFA(${i},'fail')">Fail</button>
+        <button class="pb ${editPfaState[i]==='na'?'n-on':''}" id="epb-${i}-na" onclick="setEditPFA(${i},'na')">N/A</button>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+
+function setEditPFA(i, val) {
+  editPfaState[i] = editPfaState[i] === val ? null : val;
+  ['pass','fail','na'].forEach(v => {
+    const b = document.getElementById(`epb-${i}-${v}`);
+    if (b) b.className = 'pb' + (editPfaState[i] === v ? ` ${v[0]}-on` : '');
+  });
+  const row = document.getElementById('eprow-' + i);
+  if (row) row.className = 'edit-pfa-row' + (editPfaState[i] ? ' st-' + editPfaState[i] : '');
+}
+
+function updateEditBat(v) {
+  v = parseInt(v);
+  document.getElementById('e-bat-val').textContent = v + '%';
+  const bar = document.getElementById('e-bat-bar');
+  bar.style.width = v + '%';
+  bar.style.background = v >= 60 ? '#2E7D32' : v >= 30 ? '#E65100' : '#C62828';
+}
+
+function setEditStatus(val) {
+  editStatusVal = editStatusVal === val ? '' : val;
+  ['done','more','wait'].forEach(k => {
+    document.getElementById('e-st-' + k).className = 'stbtn' + (editStatusVal === k ? ' s-' + k : '');
+  });
+}
+
+
+async function saveEdit() {
+  if (!editingRecord) return;
+  const pass = editPfaState.filter(v => v === 'pass').length;
+  const fail = editPfaState.filter(v => v === 'fail').length;
+  const na   = editPfaState.filter(v => v === 'na').length;
+
+  setLoading(true);
+
+  // Upload any new pending files
+  const newUploads = API_URL ? await uploadPendingFiles(editingRecord.id) : [];
+  const allAttachments = [...uploadedAttachments.filter(Boolean), ...newUploads];
+
+  const updated = {
+    ...editingRecord,
+    date: document.getElementById('e-date-start').value,
+    dateEnd: document.getElementById('e-date-end').value || document.getElementById('e-date-start').value,
+    dateMulti: document.getElementById('e-date-multi').value || '',
+    calibrate: document.getElementById('e-cal').value,
+    course: document.getElementById('e-course').value,
+    inspector: document.getElementById('e-insp').value,
+    model: document.getElementById('e-model').value,
+    serial: editSerials.join(', '),
+    pfa: [...editPfaState], pass, fail, na,
+    battery: parseInt(document.getElementById('e-bat-range').value),
+    status: editStatusVal,
+    problem: document.getElementById('e-prob').value,
+    service: document.getElementById('e-svc').value,
+    price: document.getElementById('e-price').value || '',
+    attachments: JSON.stringify(allAttachments),
+    savedAt: new Date().toISOString()
+  };
+  const idx = records.findIndex(r => r.id === editingRecord.id);
+  if (idx !== -1) records[idx] = updated;
+  localStorage.setItem('manikin_records', JSON.stringify(records));
+  if (API_URL) await apiSave(updated);
+  setLoading(false);
+  closeEditModal();
+  renderRecords(); renderDashboard(); renderCal();
+  showToast('แก้ไขข้อมูลสำเร็จ ✓', 'success');
+}
+
+function closeEditModal(e) {
+  if (!e || e.target === document.getElementById('edit-overlay')) {
+    document.getElementById('edit-overlay').classList.remove('open');
+    closeAllDrops();
+    resetFileUI();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// DATE RANGE HELPERS
+// ══════════════════════════════════════════════════════════════
+const thMonthsShort = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+function formatDateTH(ds) {
+  if (!ds) return '';
+  const [y, m, d] = ds.split('-');
+  return `${parseInt(d)} ${thMonthsShort[parseInt(m)-1]} ${parseInt(y)+543}`;
+}
+
+function updateDateRangeDisplay(startId, endId, displayId) {
+  const s = document.getElementById(startId)?.value;
+  const e = document.getElementById(endId)?.value;
+  const el = document.getElementById(displayId);
+  if (!el) return;
+  if (!s) { el.textContent = ''; return; }
+  if (!e || e === s) {
+    el.textContent = formatDateTH(s);
+  } else {
+    const ms = new Date(s), me = new Date(e);
+    const diff = Math.round((me - ms) / 86400000) + 1;
+    el.textContent = `${formatDateTH(s)}  →  ${formatDateTH(e)}  (${diff} วัน)`;
+  }
+}
+
+function syncDateEnd() {
+  const s = document.getElementById('f-date-start').value;
+  const e = document.getElementById('f-date-end').value;
+  // If end is empty or before start, set end = start
+  if (!e || e < s) document.getElementById('f-date-end').value = s;
+  updateDateRangeDisplay('f-date-start','f-date-end','date-range-display');
+  renderCal();
+}
+
+function syncEditDateEnd() {
+  const s = document.getElementById('e-date-start').value;
+  const e = document.getElementById('e-date-end').value;
+  if (!e || e < s) document.getElementById('e-date-end').value = s;
+  updateDateRangeDisplay('e-date-start','e-date-end','e-date-range-display');
+}
+
+// Also trigger display update when end date changes
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('f-date-end')?.addEventListener('input', () => {
+    const s = document.getElementById('f-date-start').value;
+    const e = document.getElementById('f-date-end').value;
+    if (e && e < s) {
+      document.getElementById('f-date-end').value = s;
+    }
+    updateDateRangeDisplay('f-date-start','f-date-end','date-range-display');
+    renderCal();
+  });
+  document.getElementById('e-date-end')?.addEventListener('input', () => {
+    const s = document.getElementById('e-date-start').value;
+    const e = document.getElementById('e-date-end').value;
+    if (e && e < s) document.getElementById('e-date-end').value = s;
+    updateDateRangeDisplay('e-date-start','e-date-end','e-date-range-display');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// SETTINGS PAGE
+// ══════════════════════════════════════════════════════════════
+const settingsSections = [
+  { key:'calibrate', label:'Calibrate (ปรับเทียบ)', icon:'🔧', color:'#1565C0', note:'ประเภทการตรวจสอบ' },
+  { key:'inspector', label:'Inspector (ผู้ตรวจสอบ)', icon:'👤', color:'#6A1B9A', note:'รายชื่อช่าง/บริษัท' },
+  { key:'course',    label:'Course (หลักสูตร)', icon:'📚', color:'#2E7D32', note:'ประเภทคอร์สฝึกอบรม' },
+  { key:'models',    label:'Model (รุ่น Manikin)', icon:'🫀', color:'#C62828', note:'รุ่นของหุ่น' },
+];
+
+function renderSettings() {
+  const c = loadConfig();
+  const wrap = document.getElementById('settings-sections');
+  wrap.innerHTML = '';
+
+  // Simple list sections
+  settingsSections.forEach(sec => {
+    const items = c[sec.key] || [];
+    const div = document.createElement('div');
+    div.className = 'set-card';
+    div.innerHTML = `<div class="set-hdr"><span style="font-size:16px">${sec.icon}</span>${sec.label} <span style="margin-left:auto;font-size:10px;font-weight:400;color:var(--g500)">${sec.note}</span></div>
+      <div class="set-body" id="set-body-${sec.key}"></div>`;
+    wrap.appendChild(div);
+    renderSetItems(sec.key, items, `set-body-${sec.key}`);
+  });
+
+  // Serials section (grouped by model)
+  const serialCard = document.createElement('div');
+  serialCard.className = 'set-card';
+  serialCard.innerHTML = `<div class="set-hdr"><span style="font-size:16px">🔢</span>Serial Number (แยกตาม Model) <span style="margin-left:auto;font-size:10px;font-weight:400;color:var(--g500)">หมายเลขประจำเครื่อง</span></div>
+    <div class="set-body" id="set-body-serials"></div>`;
+  wrap.appendChild(serialCard);
+
+  const sBody = document.getElementById('set-body-serials');
+  (c.models || []).forEach(model => {
+    const serials = (c.serials || {})[model] || [];
+    const grp = document.createElement('div');
+    grp.style.cssText = 'margin-bottom:14px';
+    grp.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px;display:flex;align-items:center;gap:6px">
+        <span style="background:var(--blue-l);padding:2px 10px;border-radius:4px">${model}</span>
+      </div>
+      <div id="set-body-serial-${model.replace(/\s/g,'_')}"></div>`;
+    sBody.appendChild(grp);
+    renderSetItems(`serial_${model}`, serials, `set-body-serial-${model.replace(/\s/g,'_')}`);
+  });
+}
+
+function renderSetItems(key, items, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  items.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'set-item';
+    row.draggable = true;
+    row.dataset.idx = idx;
+    row.dataset.key = key;
+    row.innerHTML = `<span class="set-item-drag" title="ลาก">⠿</span>
+      <input class="set-item-input" value="${item}" onchange="setItemEdit('${key}',${idx},this.value)" onblur="setItemEdit('${key}',${idx},this.value)">
+      <button class="set-item-del" onclick="setItemDel('${key}',${idx})" title="ลบ">✕</button>`;
+    // drag events
+    row.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', `${key}|${idx}`); row.style.opacity='.5'; });
+    row.addEventListener('dragend',   e => row.style.opacity='1');
+    row.addEventListener('dragover',  e => e.preventDefault());
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      const [srcKey, srcIdx] = e.dataTransfer.getData('text/plain').split('|');
+      if (srcKey !== key) return;
+      setItemMove(key, parseInt(srcIdx), idx);
+    });
+    container.appendChild(row);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.className = 'set-add-btn';
+  addBtn.textContent = '+ เพิ่มรายการ';
+  addBtn.onclick = () => setItemAdd(key);
+  container.appendChild(addBtn);
+}
+
+function getConfigKey(key) {
+  if (key.startsWith('serial_')) {
+    const model = key.replace('serial_','');
+    return { type:'serial', model };
+  }
+  return { type:'list', field: key };
+}
+
+function setItemEdit(key, idx, val) {
+  const c = loadConfig();
+  const k = getConfigKey(key);
+  if (k.type === 'serial') {
+    if (!c.serials[k.model]) c.serials[k.model] = [];
+    c.serials[k.model][idx] = val;
+  } else { c[k.field][idx] = val; }
+  saveConfig(c); applyConfig();
+}
+
+function setItemDel(key, idx) {
+  if (!confirm('ลบรายการนี้?')) return;
+  const c = loadConfig();
+  const k = getConfigKey(key);
+  if (k.type === 'serial') { c.serials[k.model].splice(idx, 1); }
+  else { c[k.field].splice(idx, 1); }
+  saveConfig(c); applyConfig(); renderSettings();
+}
+
+function setItemAdd(key) {
+  const val = prompt('ชื่อรายการใหม่:');
+  if (!val?.trim()) return;
+  const c = loadConfig();
+  const k = getConfigKey(key);
+  if (k.type === 'serial') {
+    if (!c.serials[k.model]) c.serials[k.model] = [];
+    c.serials[k.model].push(val.trim());
+  } else { c[k.field].push(val.trim()); }
+  saveConfig(c); applyConfig(); renderSettings();
+}
+
+function setItemMove(key, fromIdx, toIdx) {
+  if (fromIdx === toIdx) return;
+  const c = loadConfig();
+  const k = getConfigKey(key);
+  const arr = k.type==='serial' ? c.serials[k.model] : c[k.field];
+  const [item] = arr.splice(fromIdx, 1);
+  arr.splice(toIdx, 0, item);
+  saveConfig(c); applyConfig(); renderSettings();
+}
+
+function settingsReset() {
+  if (!confirm('คืนค่าทั้งหมดกลับเป็นค่าเริ่มต้น?')) return;
+  localStorage.removeItem('manikin_config');
+  cfg = loadConfig(); serialMap = cfg.serials;
+  applyConfig(); renderSettings();
+  showToast('คืนค่าเริ่มต้นแล้ว ✓', 'success');
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// HISTORY SECTION
+// ══════════════════════════════════════════════════════════════
+let historyFilter = { type: 'all', val: null };
+let historyLimit = 8;
+
+const modelInitials = { Metiman:'M', IStan:'I', BabySim:'B', Leardal:'L', Ambuman:'A' };
+const modelColors = {
+  Metiman:  { bg:'#FFEBEE', color:'#791F1F' },
+  IStan:    { bg:'#E3F2FD', color:'#0C447C' },
+  BabySim:  { bg:'#E8F5E9', color:'#27500A' },
+  Leardal:  { bg:'#E1F5EE', color:'#085041' },
+  Ambuman:  { bg:'#F3E5F5', color:'#4A148C' }
+};
+const calTypeShort = {
+  'ตรวจก่อน-หลังการใช้งาน': { label:'ก่อน-หลังใช้', bg:'#E3F2FD', color:'#0C447C' },
+  'ตรวจซ่อม':                { label:'ตรวจซ่อม',    bg:'#FFEBEE', color:'#791F1F' },
+  'ตรวจตามระยะ':             { label:'ตามระยะ',     bg:'#E8F5E9', color:'#27500A' },
+  'ติดตั้ง':                 { label:'ติดตั้ง',     bg:'#FFF3E0', color:'#633806' }
+};
+
+function setHistoryFilter(type, val) {
+  historyFilter = { type, val };
+  historyLimit = 8;
+  // Update button styles
+  document.querySelectorAll('#history-filters button').forEach(b => {
+    b.style.background = 'var(--white)';
+    b.style.color = 'var(--g700)';
+    b.style.borderColor = 'var(--g300)';
+  });
+  const activeId = type === 'all' ? 'hf-all' : 'hf-' + (val || '');
+  const activeBtn = document.getElementById(activeId);
+  if (activeBtn) {
+    activeBtn.style.background = 'var(--navy)';
+    activeBtn.style.color = '#fff';
+    activeBtn.style.borderColor = 'var(--navy)';
+  }
+  renderHistory(type, val, historyLimit);
+}
+
+function historyShowMore() {
+  historyLimit += 8;
+  renderHistory(historyFilter.type, historyFilter.val, historyLimit);
+}
+
+function renderHistory(type, val, limit) {
+  // Filter records
+  let filtered = [...records];
+  if (type === 'model' && val) filtered = filtered.filter(r => r.model === val);
+  if (type === 'status' && val) filtered = filtered.filter(r => r.status === val);
+  // Sort by date desc
+  filtered.sort((a, b) => (b.date||'') > (a.date||'') ? 1 : -1);
+
+  // ── Status cards (unique model+serial, latest record per unit) ──
+  const unitMap = {};
+  filtered.forEach(r => {
+    const key = (r.model||'?') + '|' + (r.serial||'');
+    if (!unitMap[key] || (r.date||'') > (unitMap[key].date||'')) unitMap[key] = r;
+  });
+  const cardEl = document.getElementById('history-status-cards');
+  const units = Object.values(unitMap);
+  if (!units.length) {
+    cardEl.innerHTML = '';
+  } else {
+    cardEl.innerHTML = units.map(r => {
+      const mc = modelColors[r.model] || { bg:'#F5F5F5', color:'#444' };
+      const init = modelInitials[r.model] || (r.model||'?')[0];
+      const passRate = (r.pass + r.fail + r.na) > 0 ? Math.round(r.pass / (r.pass + r.fail + r.na) * 100) : 0;
+      const statusC = r.status === 'done' ? '#2E7D32' : r.status === 'more' ? '#E65100' : r.status === 'wait' ? '#1565C0' : '#888';
+      const statusL = statusMap[r.status] || '-';
+      const barW = passRate;
+      const barC = passRate >= 80 ? '#2E7D32' : passRate >= 50 ? '#E65100' : '#C62828';
+      const serial = r.serial ? r.serial.split(',')[0].trim() : '';
+      return `<div style="background:var(--g50);border-radius:var(--rs);padding:10px;border-left:3px solid ${statusC};border-radius:0 8px 8px 0">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+          <div style="width:28px;height:28px;border-radius:6px;background:${mc.bg};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${mc.color};flex-shrink:0">${init}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:600;color:var(--g900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.model||'-'}</div>
+            <div style="font-size:10px;color:var(--g500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${serial||r.date||''}</div>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:${statusC};margin-bottom:4px">${statusL}</div>
+        <div style="height:4px;background:var(--g200);border-radius:2px;overflow:hidden">
+          <div style="height:100%;width:${barW}%;background:${barC};border-radius:2px"></div>
+        </div>
+        <div style="font-size:10px;color:var(--g500);margin-top:3px">Pass ${r.pass}/${r.pass+r.fail+r.na} · ${barW}%</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Timeline ──
+  const tlEl = document.getElementById('history-timeline');
+  const emptyEl = document.getElementById('history-empty');
+  const moreBtn = document.getElementById('history-show-more');
+  const shown = filtered.slice(0, limit);
+  if (!shown.length) {
+    tlEl.innerHTML = ''; emptyEl.style.display = 'block'; moreBtn.style.display = 'none'; return;
+  }
+  emptyEl.style.display = 'none';
+  tlEl.innerHTML = shown.map(r => {
+    const mc = modelColors[r.model] || { bg:'#F5F5F5', color:'#444' };
+    const init = modelInitials[r.model] || (r.model||'?')[0];
+    const ct = calTypeShort[r.calibrate] || { label: r.calibrate||'-', bg:'#F5F5F5', color:'#888' };
+    const statusC = r.status==='done'?'#2E7D32':r.status==='more'?'#E65100':r.status==='wait'?'#1565C0':'#888';
+    const dateStr = r.dateEnd && r.dateEnd !== r.date
+      ? formatDateTH(r.date) + ' → ' + formatDateTH(r.dateEnd)
+      : formatDateTH(r.date);
+    const serial = r.serial ? r.serial.split(',')[0].trim() : '';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;background:var(--g50);border-radius:var(--rs);transition:background .1s" onmouseenter="this.style.background='var(--g100)'" onmouseleave="this.style.background='var(--g50)'" onclick="viewRecord(${r.id})" style="cursor:pointer">
+      <div style="width:32px;height:32px;border-radius:7px;background:${mc.bg};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${mc.color};flex-shrink:0">${init}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--g900)">${r.model||'-'} ${serial ? '<span style="font-size:11px;font-weight:400;color:var(--g500)">'+serial+'</span>' : ''}</div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:3px;flex-wrap:wrap">
+          <span style="font-size:10px;background:${ct.bg};color:${ct.color};padding:1px 7px;border-radius:10px;font-weight:500">${ct.label}</span>
+          <span style="font-size:10px;color:var(--g500)">${dateStr}</span>
+          <span style="font-size:10px;color:var(--g500)">${r.inspector||''}</span>
+          ${r.price ? '<span style="font-size:10px;color:var(--g500)">'+parseFloat(r.price).toLocaleString('th-TH')+' บาท</span>' : ''}
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:12px;font-weight:600;color:${statusC}">${statusMap[r.status]||'-'}</div>
+        <div style="font-size:10px;color:var(--g500);margin-top:2px">Pass ${r.pass}/${r.pass+r.fail+r.na}</div>
+      </div>
+    </div>`;
+  }).join('');
+  moreBtn.style.display = filtered.length > limit ? 'block' : 'none';
+  if (filtered.length > limit) moreBtn.textContent = 'แสดงเพิ่มเติม (' + (filtered.length - limit) + ' รายการ)';
+}
+
+// ══════════════════════════════════════════════════════════════
+// MANUAL PAGE
+// ══════════════════════════════════════════════════════════════
+const modelColors2 = {
+  Metiman:{ bg:'#FFEBEE', border:'#EF9A9A', color:'#791F1F', init:'M' },
+  IStan:  { bg:'#E3F2FD', border:'#90CAF9', color:'#0C447C', init:'I' },
+  BabySim:{ bg:'#E8F5E9', border:'#A5D6A7', color:'#27500A', init:'B' },
+  Leardal:{ bg:'#E1F5EE', border:'#80CBC4', color:'#085041', init:'L' },
+  Ambuman:{ bg:'#F3E5F5', border:'#CE93D8', color:'#4A148C', init:'A' }
+};
+
+function renderManual() {
+  const c = loadConfig();
+  const wrap = document.getElementById('manual-cards');
+  wrap.innerHTML = '';
+  (c.models||[]).forEach(model => {
+    const m = (c.manuals||{})[model] || { maker:'', features:'', inspector:'', note:'', links:[] };
+    const mc = modelColors2[model] || { bg:'#F5F5F5', border:'#DDD', color:'#444', init:model[0] };
+    const serials = (c.serials||{})[model] || [];
+    // Count records for this model
+    const recCount = records.filter(r => r.model === model).length;
+    const lastRec = [...records].filter(r => r.model === model).sort((a,b)=>(b.date||'')>(a.date||'')?1:-1)[0];
+
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden';
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'background:'+mc.bg+';border-bottom:1px solid '+mc.border+';padding:14px 16px;display:flex;align-items:center;gap:12px';
+    hdr.innerHTML = `
+      <div style="width:44px;height:44px;border-radius:10px;background:${mc.color};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;flex-shrink:0">${mc.init}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;font-weight:700;color:${mc.color}">${model}</div>
+        <div style="font-size:12px;color:${mc.color};opacity:.8;margin-top:1px">${m.maker||'ไม่ระบุผู้ผลิต'}</div>
+      </div>
+      <button onclick="openManualEdit('${model}')" style="height:28px;padding:0 10px;border:1px solid ${mc.border};border-radius:6px;background:var(--white);color:${mc.color};font-size:11px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif;flex-shrink:0">✏️ แก้ไข</button>`;
+    card.appendChild(hdr);
+
+    // Body
+    const body = document.createElement('div');
+    body.style.cssText = 'padding:14px 16px;display:flex;flex-direction:column;gap:10px';
+
+    // Stats row
+    const stats = document.createElement('div');
+    stats.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px';
+    stats.innerHTML = `
+      <div style="background:var(--g50);border-radius:var(--rs);padding:8px 10px">
+        <div style="font-size:10px;color:var(--g500);margin-bottom:2px">จำนวน Serial</div>
+        <div style="font-size:16px;font-weight:700;color:var(--g900)">${serials.length}</div>
+      </div>
+      <div style="background:var(--g50);border-radius:var(--rs);padding:8px 10px">
+        <div style="font-size:10px;color:var(--g500);margin-bottom:2px">บันทึกในระบบ</div>
+        <div style="font-size:16px;font-weight:700;color:var(--g900)">${recCount} ครั้ง</div>
+      </div>`;
+    body.appendChild(stats);
+
+    // Features
+    if (m.features) {
+      const feat = document.createElement('div');
+      feat.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">ฟีเจอร์</div>
+        <div style="font-size:12px;color:var(--g900);line-height:1.6">${m.features}</div>`;
+      body.appendChild(feat);
+    }
+
+    // Inspector
+    if (m.inspector) {
+      const ins = document.createElement('div');
+      ins.style.cssText = 'display:flex;align-items:center;gap:6px';
+      ins.innerHTML = `<span style="font-size:11px;font-weight:700;color:var(--g500)">ช่างรับผิดชอบ:</span>
+        <span style="font-size:12px;color:var(--g900)">${m.inspector}</span>`;
+      body.appendChild(ins);
+    }
+
+    // Last service
+    if (lastRec) {
+      const ls = document.createElement('div');
+      const statusC = lastRec.status==='done'?'#2E7D32':lastRec.status==='more'?'#E65100':'#1565C0';
+      ls.style.cssText = 'background:var(--g50);border-radius:var(--rs);padding:8px 10px;display:flex;justify-content:space-between;align-items:center';
+      ls.innerHTML = `<div><div style="font-size:10px;color:var(--g500)">ตรวจสอบล่าสุด</div>
+        <div style="font-size:12px;color:var(--g900);margin-top:1px">${formatDateTH(lastRec.date)}</div></div>
+        <span style="font-size:11px;font-weight:600;color:${statusC}">${statusMap[lastRec.status]||'-'}</span>`;
+      body.appendChild(ls);
+    }
+
+    // Note
+    if (m.note) {
+      const note = document.createElement('div');
+      note.style.cssText = 'background:#FFF9C4;border-radius:var(--rs);padding:8px 10px;font-size:12px;color:#633806;line-height:1.5';
+      note.textContent = '📝 ' + m.note;
+      body.appendChild(note);
+    }
+
+    // Links
+    if (m.links && m.links.length) {
+      const linkWrap = document.createElement('div');
+      linkWrap.style.cssText = 'display:flex;flex-direction:column;gap:5px';
+      linkWrap.innerHTML = '<div style="font-size:11px;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">ลิงก์คู่มือ / เอกสาร</div>';
+      m.links.forEach(lk => {
+        const a = document.createElement('a');
+        a.href = lk.url;
+        a.target = '_blank';
+        a.style.cssText = 'display:flex;align-items:center;gap:6px;padding:7px 10px;background:var(--blue-l);border-radius:var(--rs);text-decoration:none;color:var(--blue);font-size:12px;font-weight:500';
+        a.innerHTML = '<span style="font-size:14px">🔗</span><span style="flex:1">' + lk.label + '</span><span style="font-size:10px;opacity:.7">เปิด →</span>';
+        linkWrap.appendChild(a);
+      });
+      body.appendChild(linkWrap);
+    }
+
+    // View history button
+    const histBtn = document.createElement('button');
+    histBtn.style.cssText = 'width:100%;height:32px;border:1px solid var(--g200);border-radius:var(--rs);background:var(--g50);color:var(--g700);font-size:12px;cursor:pointer;font-family:\'Sarabun\',sans-serif;font-weight:500;transition:background .12s';
+    histBtn.textContent = 'ดูประวัติ ' + recCount + ' รายการ →';
+    histBtn.onmouseenter = () => histBtn.style.background = 'var(--g100)';
+    histBtn.onmouseleave = () => histBtn.style.background = 'var(--g50)';
+    histBtn.onclick = () => { showPage('dashboard'); setTimeout(()=>setHistoryFilter('model',model),100); };
+    body.appendChild(histBtn);
+
+    card.appendChild(body);
+    wrap.appendChild(card);
+  });
+}
+
+// ── Manual Edit Modal ─────────────────────────────────────────
+function openManualEdit(model) {
+  const c = loadConfig();
+  const m = (c.manuals||{})[model] || { maker:'', features:'', inspector:'', note:'', links:[] };
+  const mc = modelColors2[model] || { color:'#333' };
+  const overlay = document.createElement('div');
+  overlay.id = 'manual-edit-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+
+  const linksHtml = (m.links||[]).map((lk,i)=>`
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <input id="ml-label-${i}" value="${lk.label}" placeholder="ชื่อลิงก์" style="flex:1;height:32px;border:1px solid var(--g300);border-radius:var(--rs);padding:0 8px;font-size:12px;font-family:'Sarabun',sans-serif;background:var(--g50);color:var(--g900)">
+      <input id="ml-url-${i}" value="${lk.url}" placeholder="https://..." style="flex:2;height:32px;border:1px solid var(--g300);border-radius:var(--rs);padding:0 8px;font-size:12px;font-family:'Sarabun',sans-serif;background:var(--g50);color:var(--g900)">
+      <button onclick="this.parentElement.remove()" style="width:32px;height:32px;border:1px solid var(--red);border-radius:var(--rs);background:var(--red-l);color:var(--red);cursor:pointer;font-size:14px">✕</button>
+    </div>`).join('');
+
+  overlay.innerHTML = `<div style="background:var(--white);border-radius:14px;width:100%;max-width:540px;max-height:88vh;overflow-y:auto;box-shadow:0 20px 48px rgba(0,0,0,.25)">
+    <div style="background:var(--navy);border-radius:14px 14px 0 0;padding:14px 18px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:14px;font-weight:700;color:#fff">✏️ แก้ไขคู่มือ — ${model}</div>
+      <button onclick="document.getElementById('manual-edit-overlay').remove()" style="background:rgba(255,255,255,.15);border:none;border-radius:6px;color:#fff;width:28px;height:28px;cursor:pointer;font-size:16px">✕</button>
+    </div>
+    <div style="padding:18px;display:flex;flex-direction:column;gap:12px">
+      <div class="field"><label style="font-size:12px;font-weight:600;color:var(--g700);display:block;margin-bottom:4px">ผู้ผลิต / Manufacturer</label>
+        <input id="me-maker" value="${m.maker||''}" placeholder="เช่น Laerdal Medical" style="width:100%;height:36px;border:1px solid var(--g300);border-radius:var(--rs);padding:0 10px;font-size:13px;font-family:'Sarabun',sans-serif;background:var(--g50);color:var(--g900)"></div>
+      <div class="field"><label style="font-size:12px;font-weight:600;color:var(--g700);display:block;margin-bottom:4px">ฟีเจอร์ / Specifications</label>
+        <textarea id="me-features" placeholder="เช่น CPR Feedback, EKG, Defib, Vocal Sounds..." style="width:100%;height:72px;border:1px solid var(--g300);border-radius:var(--rs);padding:8px 10px;font-size:13px;font-family:'Sarabun',sans-serif;background:var(--g50);color:var(--g900);resize:vertical">${m.features||''}</textarea></div>
+      <div class="field"><label style="font-size:12px;font-weight:600;color:var(--g700);display:block;margin-bottom:4px">ช่างรับผิดชอบ</label>
+        <input id="me-inspector" value="${m.inspector||''}" placeholder="เช่น BJH Medical" style="width:100%;height:36px;border:1px solid var(--g300);border-radius:var(--rs);padding:0 10px;font-size:13px;font-family:'Sarabun',sans-serif;background:var(--g50);color:var(--g900)"></div>
+      <div class="field"><label style="font-size:12px;font-weight:600;color:var(--g700);display:block;margin-bottom:4px">หมายเหตุ / Note</label>
+        <textarea id="me-note" placeholder="ข้อควรระวัง หรือหมายเหตุพิเศษ..." style="width:100%;height:60px;border:1px solid var(--g300);border-radius:var(--rs);padding:8px 10px;font-size:13px;font-family:'Sarabun',sans-serif;background:var(--g50);color:var(--g900);resize:vertical">${m.note||''}</textarea></div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--g700);display:block;margin-bottom:6px">ลิงก์คู่มือ / เอกสาร</label>
+        <div id="me-links-wrap">${linksHtml}</div>
+        <button onclick="addManualLink()" style="width:100%;height:32px;border:1.5px dashed var(--g300);border-radius:var(--rs);background:var(--g50);color:var(--g500);font-size:12px;cursor:pointer;font-family:'Sarabun',sans-serif;margin-top:4px">+ เพิ่มลิงก์</button>
+      </div>
+      <button onclick="saveManualEdit('${model}')" style="width:100%;height:42px;background:var(--navy);color:#fff;border:none;border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif">บันทึก</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+function addManualLink() {
+  const wrap = document.getElementById('me-links-wrap');
+  const i = wrap.children.length;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:6px;margin-bottom:6px';
+  div.innerHTML = `<input id="ml-label-${i}" placeholder="ชื่อลิงก์" style="flex:1;height:32px;border:1px solid var(--g300);border-radius:var(--rs);padding:0 8px;font-size:12px;font-family:'Sarabun',sans-serif;background:var(--g50);color:var(--g900)">
+    <input id="ml-url-${i}" placeholder="https://..." style="flex:2;height:32px;border:1px solid var(--g300);border-radius:var(--rs);padding:0 8px;font-size:12px;font-family:'Sarabun',sans-serif;background:var(--g50);color:var(--g900)">
+    <button onclick="this.parentElement.remove()" style="width:32px;height:32px;border:1px solid var(--red);border-radius:var(--rs);background:var(--red-l);color:var(--red);cursor:pointer;font-size:14px">✕</button>`;
+  wrap.appendChild(div);
+}
+
+function saveManualEdit(model) {
+  const c = loadConfig();
+  if (!c.manuals) c.manuals = {};
+  const wrap = document.getElementById('me-links-wrap');
+  const links = [];
+  Array.from(wrap.children).forEach((row,i) => {
+    const label = (row.querySelector('[id^=ml-label]')||{}).value||'';
+    const url   = (row.querySelector('[id^=ml-url]')||{}).value||'';
+    if (url.trim()) links.push({ label: label||url, url: url.trim() });
+  });
+  c.manuals[model] = {
+    maker:     document.getElementById('me-maker').value,
+    features:  document.getElementById('me-features').value,
+    inspector: document.getElementById('me-inspector').value,
+    note:      document.getElementById('me-note').value,
+    links
+  };
+  saveConfig(c);
+  document.getElementById('manual-edit-overlay').remove();
+  renderManual();
+  showToast('บันทึกคู่มือ ' + model + ' แล้ว ✓', 'success');
+}
+
+const now = new Date();
+calYear = now.getFullYear(); calMonth = now.getMonth();
+dcalYear = now.getFullYear(); dcalMonth = now.getMonth();
+document.getElementById('f-date-start').value = now.toISOString().split('T')[0];
+document.getElementById('f-date-end').value = now.toISOString().split('T')[0];
+const initLabel = document.getElementById('f-datepick-label');
+initLabel.textContent = formatDateTH(now.toISOString().split('T')[0]);
+initLabel.style.color = 'var(--g900)';
+document.getElementById('f-datepick-trigger').classList.add('has-value');
+buildPFA(); updateFormSummary(); updateBat(80);
+applyConfig();
+renderDashboard();
+
+if (API_URL) {
+  document.getElementById('setup-overlay').style.display = 'none';
+  updateSyncStatus('ready');
+  syncData();
+} else {
+  updateSyncStatus('error', 'Not connected');
+}
+</script>
+<!-- ══ DATE PICKER POPUP ═══════════════════════════════════════ -->
+<div class="dp-overlay" id="dp-overlay" onclick="dpOverlayClick(event)">
+  <div class="dp-popup">
+    <div class="dp-header">
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button class="dp-mode-btn active" id="dp-mode-range" onclick="dpSetMode('range')">📅 ช่วงวัน</button>
+        <button class="dp-mode-btn" id="dp-mode-multi" onclick="dpSetMode('multi')">✦ หลายวัน</button>
+      </div>
+      <div class="dp-header-range" id="dp-header-range">คลิกเลือกวันเริ่มต้น</div>
+    </div>
+    <div class="dp-nav">
+      <button class="dp-nav-btn" onclick="dpChangeMonth(-1)">&#8592;</button>
+      <span class="dp-month-label" id="dp-month-label" onclick="dpOpenPicker()" title="คลิกเลือกเดือน/ปี"></span>
+      <button class="dp-nav-btn" onclick="dpChangeMonth(1)">&#8594;</button>
+    </div>
+    <div class="dp-grid" id="dp-grid"></div>
+    <div class="dp-hint" id="dp-hint"></div>
+    <div class="dp-footer">
+      <button class="dp-footer-btn clear" onclick="dpClear()">ล้าง</button>
+      <button class="dp-footer-btn confirm" id="dp-confirm" onclick="dpConfirm()" disabled>ยืนยัน</button>
+    </div>
+
+    <!-- Month/Year Picker Panel -->
+    <div class="dp-picker" id="dp-picker">
+      <div class="dp-picker-title">
+        <span>เลือกเดือน / ปี</span>
+        <button class="dp-picker-close" onclick="dpClosePicker()">✕</button>
+      </div>
+      <div class="dp-year-nav">
+        <button class="dp-year-btn" onclick="dpPickerYear(-1)">&#8592;</button>
+        <div class="dp-year-val" id="dp-picker-year"></div>
+        <button class="dp-year-btn" onclick="dpPickerYear(1)">&#8594;</button>
+      </div>
+      <div class="dp-months-grid" id="dp-picker-months"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const dpThMonths=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const dpThDays=['อา','จ','อ','พ','พฤ','ศ','ส'];
+let dpYear,dpMonth,dpContext='f',dpMode='range',dpStart=null,dpEnd=null,dpHover=null,dpMulti=[];
+function openDatePicker(ctx){dpContext=ctx;const s=document.getElementById(ctx+'-date-start').value;const e=document.getElementById(ctx+'-date-end').value;const mr=document.getElementById(ctx+'-date-multi')?.value||'';dpMulti=mr?mr.split(',').filter(Boolean):[];dpStart=s||null;dpEnd=(e&&e!==s)?e:null;dpHover=null;const ref=dpStart||dpMulti[0]||new Date().toISOString().split('T')[0];dpYear=parseInt(ref.slice(0,4));dpMonth=parseInt(ref.slice(5,7))-1;dpSetMode(dpMulti.length?'multi':'range',true);dpRender();document.getElementById('dp-overlay').classList.add('open');}
+function dpSetMode(mode,silent){dpMode=mode;document.getElementById('dp-mode-range').classList.toggle('active',mode==='range');document.getElementById('dp-mode-multi').classList.toggle('active',mode==='multi');if(!silent){dpStart=null;dpEnd=null;dpHover=null;dpMulti=[];document.getElementById('dp-hint').textContent=mode==='range'?'คลิกวันเริ่มต้น':'คลิกเลือกวันที่ต้องการ';dpRender();}}
+function dpOverlayClick(e){if(e.target===document.getElementById('dp-overlay'))dpClose();}
+function dpClose(){document.getElementById('dp-overlay').classList.remove('open');dpHover=null;}
+function dpChangeMonth(dir){dpMonth+=dir;if(dpMonth>11){dpMonth=0;dpYear++;}if(dpMonth<0){dpMonth=11;dpYear--;}dpRender();}
+
+function dpRender(){
+  const pad=n=>String(n).padStart(2,'0');const today=new Date();
+  document.getElementById('dp-month-label').textContent=dpThMonths[dpMonth]+' '+(dpYear+543);
+  const grid=document.getElementById('dp-grid');grid.innerHTML='';
+  dpThDays.forEach(d=>{const el=document.createElement('div');el.className='dp-day-hdr';el.textContent=d;grid.appendChild(el);});
+  const first=new Date(dpYear,dpMonth,1).getDay(),days=new Date(dpYear,dpMonth+1,0).getDate();
+  for(let i=0;i<first;i++){const el=document.createElement('div');el.className='dp-day dp-other';el.textContent=new Date(dpYear,dpMonth,-first+i+1).getDate();grid.appendChild(el);}
+  for(let d=1;d<=days;d++){
+    const ds=dpYear+'-'+pad(dpMonth+1)+'-'+pad(d);
+    const isToday=d===today.getDate()&&dpMonth===today.getMonth()&&dpYear===today.getFullYear();
+    let cls='dp-day';
+    if(dpMode==='range'){
+      const eff=dpEnd||dpHover;
+      const lo=dpStart&&eff?(dpStart<=eff?dpStart:eff):null;
+      const hi=dpStart&&eff?(dpStart<=eff?eff:dpStart):null;
+      if(dpStart===ds&&dpEnd===ds)cls+=' dp-start dp-end';
+      else if(dpStart===ds)cls+=' dp-start'+(lo&&hi?' dp-in-range':'');
+      else if(dpEnd===ds)cls+=' dp-end'+(lo&&hi?' dp-in-range':'');
+      else if(lo&&hi&&ds>lo&&ds<hi)cls+=' dp-in-range';
+    } else {
+      if(dpMulti.includes(ds))cls+=' dp-multi-sel';
+    }
+    if(isToday&&!cls.includes('dp-start')&&!cls.includes('dp-end')&&!cls.includes('dp-multi-sel'))cls+=' dp-today';
+    const el=document.createElement('div');
+    el.className=cls;el.textContent=d;el.dataset.ds=ds;
+    grid.appendChild(el);
+  }
+  grid.onclick=ev=>{const t=ev.target.closest('[data-ds]');if(t)dpSelectDay(t.dataset.ds);};
+  if(dpMode==='range'){
+    grid.onmouseover=ev=>{const t=ev.target.closest('[data-ds]');if(t&&dpStart&&!dpEnd&&dpHover!==t.dataset.ds){dpHover=t.dataset.ds;dpRefreshClasses();}};
+    grid.onmouseleave=()=>{if(dpStart&&!dpEnd&&dpHover){dpHover=null;dpRefreshClasses();}};
+  }else{grid.onmouseover=null;grid.onmouseleave=null;}
+  dpUpdateHeader();
+  document.getElementById('dp-confirm').disabled=dpMode==='range'?!dpStart:dpMulti.length===0;
+}
+
+let dpPickerY = 0;
+function dpOpenPicker(){
+  dpPickerY = dpYear;
+  dpRenderPicker();
+  document.getElementById('dp-picker').classList.add('open');
+}
+function dpClosePicker(){ document.getElementById('dp-picker').classList.remove('open'); }
+function dpPickerYear(dir){
+  dpPickerY += dir;
+  dpRenderPicker();
+}
+function dpRenderPicker(){
+  document.getElementById('dp-picker-year').textContent = dpPickerY + 543 + ' (พ.ศ.)';
+  const grid = document.getElementById('dp-picker-months');
+  const thShort = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  grid.innerHTML = '';
+  thShort.forEach(function(m, i) {
+    const isActive = dpPickerY === dpYear && i === dpMonth;
+    const btn = document.createElement('button');
+    btn.className = 'dp-month-btn' + (isActive ? ' dp-m-active' : '');
+    btn.textContent = m;
+    btn.onclick = function(){ dpPickerSelect(i); };
+    grid.appendChild(btn);
+  });
+}
+function dpPickerSelect(month){
+  dpYear = dpPickerY;
+  dpMonth = month;
+  dpClosePicker();
+  dpRender();
+}
+
+function dpRefreshClasses(){
+  const pad=n=>String(n).padStart(2,'0'),days=new Date(dpYear,dpMonth+1,0).getDate(),today=new Date();
+  for(let d=1;d<=days;d++){
+    const ds=dpYear+'-'+pad(dpMonth+1)+'-'+pad(d);
+    const el=document.querySelector('#dp-grid [data-ds="'+ds+'"]');if(!el)continue;
+    const isToday=d===today.getDate()&&dpMonth===today.getMonth()&&dpYear===today.getFullYear();
+    const eff=dpEnd||dpHover,lo=dpStart&&eff?(dpStart<=eff?dpStart:eff):null,hi=dpStart&&eff?(dpStart<=eff?eff:dpStart):null;
+    let cls='dp-day';
+    if(dpStart===ds&&dpEnd===ds)cls+=' dp-start dp-end';
+    else if(dpStart===ds)cls+=' dp-start'+(lo&&hi?' dp-in-range':'');
+    else if(dpEnd===ds)cls+=' dp-end'+(lo&&hi?' dp-in-range':'');
+    else if(lo&&hi&&ds>lo&&ds<hi)cls+=' dp-in-range';
+    if(isToday&&!cls.includes('dp-start')&&!cls.includes('dp-end'))cls+=' dp-today';
+    el.className=cls;
+  }
+}
+function dpSelectDay(ds){
+  if(dpMode==='range'){
+    if(!dpStart||dpEnd){dpStart=ds;dpEnd=null;dpHover=null;document.getElementById('dp-hint').textContent='คลิกวันสิ้นสุด หรือกด ยืนยัน เพื่อเลือกวันเดียว';}
+    else{if(ds>=dpStart)dpEnd=ds;else{dpEnd=dpStart;dpStart=ds;}dpHover=null;document.getElementById('dp-hint').textContent='';}
+  } else {
+    const idx=dpMulti.indexOf(ds);if(idx===-1)dpMulti.push(ds);else dpMulti.splice(idx,1);
+    dpMulti.sort();document.getElementById('dp-hint').textContent=dpMulti.length?'เลือกแล้ว '+dpMulti.length+' วัน':'คลิกเลือกวันที่ต้องการ';
+  }
+  dpRender();
+}
+function dpUpdateHeader(){
+  const el=document.getElementById('dp-header-range');
+  if(dpMode==='range'){
+    if(!dpStart){el.textContent='คลิกเลือกวันเริ่มต้น';return;}
+    if(!dpEnd||dpEnd===dpStart){el.textContent=formatDateTH(dpStart)+'  (เลือกวันสิ้นสุด)';return;}
+    el.textContent=formatDateTH(dpStart)+'  →  '+formatDateTH(dpEnd)+'  ('+(Math.round((new Date(dpEnd)-new Date(dpStart))/86400000)+1)+' วัน)';
+  } else {
+    if(!dpMulti.length){el.textContent='คลิกเลือกวันที่ต้องการ';return;}
+    el.textContent=dpMulti.length<=3?dpMulti.map(formatDateTH).join(', '):formatDateTH(dpMulti[0])+' ... '+formatDateTH(dpMulti[dpMulti.length-1])+' ('+dpMulti.length+' วัน)';
+  }
+}
+function dpConfirm(){
+  const ctx=dpContext,trigger=document.getElementById(ctx+'-datepick-trigger'),label=document.getElementById(ctx+'-datepick-label');
+  if(dpMode==='range'){
+    const s=dpStart,e=dpEnd||dpStart;
+    document.getElementById(ctx+'-date-start').value=s;document.getElementById(ctx+'-date-end').value=e;
+    if(document.getElementById(ctx+'-date-multi'))document.getElementById(ctx+'-date-multi').value='';
+    label.textContent=s===e?formatDateTH(s):formatDateTH(s)+'  →  '+formatDateTH(e)+'  ('+(Math.round((new Date(e)-new Date(s))/86400000)+1)+' วัน)';
+  } else {
+    const sorted=[...dpMulti].sort();
+    document.getElementById(ctx+'-date-start').value=sorted[0]||'';document.getElementById(ctx+'-date-end').value=sorted[sorted.length-1]||sorted[0]||'';
+    if(document.getElementById(ctx+'-date-multi'))document.getElementById(ctx+'-date-multi').value=sorted.join(',');
+    label.textContent=sorted.length<=3?sorted.map(formatDateTH).join(', '):formatDateTH(sorted[0])+' ... '+formatDateTH(sorted[sorted.length-1])+' ('+sorted.length+' วัน)';
+  }
+  label.style.color='var(--g900)';trigger.classList.add('has-value');if(ctx==='f')renderCal();dpClose();
+}
+function dpClear(){
+  dpStart=null;dpEnd=null;dpHover=null;dpMulti=[];const ctx=dpContext;
+  document.getElementById(ctx+'-date-start').value='';document.getElementById(ctx+'-date-end').value='';
+  if(document.getElementById(ctx+'-date-multi'))document.getElementById(ctx+'-date-multi').value='';
+  const label=document.getElementById(ctx+'-datepick-label');label.textContent='คลิกเลือกวันที่...';label.style.color='var(--g500)';
+  document.getElementById(ctx+'-datepick-trigger').classList.remove('has-value');
+  document.getElementById('dp-hint').textContent='';document.getElementById('dp-confirm').disabled=true;
+  if(ctx==='f')renderCal();dpRender();
+}
+</script>
+
+</body>
+</html>
