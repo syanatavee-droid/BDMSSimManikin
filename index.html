@@ -1251,11 +1251,14 @@ async function syncData() {
     const res = await fetch(API_URL + '?action=getAll');
     const data = await res.json();
     if (Array.isArray(data)) {
-      records = data;
+      // รวมข้อมูล (ไม่เขียนทับ): รายการจาก Sheets ชนะเมื่อ id ตรงกัน, รายการที่มีเฉพาะในเครื่องยังอยู่ครบ
+      const merged = new Map(records.map(r => [String(r.id), r]));
+      data.forEach(r => merged.set(String(r.id), { ...(merged.get(String(r.id)) || {}), ...r }));
+      records = [...merged.values()];
       localStorage.setItem('manikin_records', JSON.stringify(records));
       updateSyncStatus('ready', 'Synced ✓');
       renderDashboard(); renderRecords(); renderCal();
-      showToast('Sync สำเร็จ ' + records.length + ' รายการ ✓', 'success');
+      showToast('Sync สำเร็จ — Sheets ' + data.length + ' รายการ, รวมในเครื่อง ' + records.length + ' รายการ ✓', 'success');
     } else throw new Error();
   } catch { updateSyncStatus('error', 'Sync failed'); showToast('Sync ไม่สำเร็จ', 'error'); }
 }
