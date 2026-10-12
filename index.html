@@ -899,7 +899,7 @@ let API_URL = localStorage.getItem('manikin_api_url') || '';
 let records = JSON.parse(localStorage.getItem('manikin_records') || '[]');
 
 // ── Pre-load historical data from PDFs & Excel (run once) ────
-if (!localStorage.getItem('manikin_preloaded_v11')) {
+if (!localStorage.getItem('manikin_preloaded_v12')) {
   const preloadRecords = [
     // ══ Laerdal (Resusci Anne) — BJH Medical ═════════════════
     {id:1002,date:'2024-03-15',dateEnd:'2024-03-15',calibrate:'ตรวจตามระยะ',course:'',inspector:'BJH Medical',model:'Leardal',serial:'Leardal Snowy Adult (17/04/2019)',pfa:['pass','pass','pass','pass','pass','pass','pass'],pass:7,fail:0,na:0,battery:100,status:'done',problem:'PM ตรวจตามระยะประจำปี',service:'Check Device and Result Sheet: Test pass, Check and Clean all Test OK, ทดสอบใช้งาน สามารถใช้งานได้ปกติ (Job Sheet 14425, S/N 15147220602)',price:'',attachments:'[]',savedAt:'2024-03-15T00:00:00.000Z'},
@@ -981,12 +981,12 @@ if (!localStorage.getItem('manikin_preloaded_v11')) {
   ];
 
   // Merge: only add records not already in storage
-  const existing = JSON.parse(localStorage.getItem('manikin_records') || '[]').filter(r => !(r.id >= 9001 && r.id <= 9012) && !(r.id >= 8001 && r.id <= 8005) && r.id !== 1001); // แทนที่รายการที่เคยเดาข้อมูล
+  const existing = JSON.parse(localStorage.getItem('manikin_records') || '[]').filter(r => !(r.id >= 9001 && r.id <= 9012) && !(r.id >= 8001 && r.id <= 8005) && r.id !== 1001 && !preloadRecords.some(p => p.id === r.id)); // v12: คืนค่ารายการ preload ที่ถูก Sync เขียนทับ
   const existingIds = new Set(existing.map(r => r.id));
   const toAdd = preloadRecords.filter(r => !existingIds.has(r.id));
   const merged = [...toAdd, ...existing];
   localStorage.setItem('manikin_records', JSON.stringify(merged));
-  localStorage.setItem('manikin_preloaded_v11', '1');
+  localStorage.setItem('manikin_preloaded_v12', '1');
   records = merged;
 }
 let sortField = 'date', sortDir = -1;
@@ -1266,14 +1266,26 @@ async function syncData() {
     const res = await fetch(API_URL + '?action=getAll');
     const data = await res.json();
     if (Array.isArray(data)) {
-      // รวมข้อมูล (ไม่เขียนทับ): รายการจาก Sheets ชนะเมื่อ id ตรงกัน, รายการที่มีเฉพาะในเครื่องยังอยู่ครบ
+      // รวมข้อมูลแบบปลอดภัย: ข้ามแถวจาก Sheets ที่ผิดรูป (ไม่มี Model/Serial) และไม่ให้ค่าว่างทับค่าในเครื่อง
       const merged = new Map(records.map(r => [String(r.id), r]));
-      data.forEach(r => merged.set(String(r.id), { ...(merged.get(String(r.id)) || {}), ...r }));
+      let skipped = 0;
+      data.forEach(r => {
+        if (!r || r.id === '' || r.id == null || !r.model || !r.serial) { skipped++; return; }
+        const key = String(r.id), next = { ...(merged.get(key) || {}) };
+        Object.entries(r).forEach(([k, v]) => {
+          if (v === '' || v == null) return;
+          if (k === 'battery' && v === 0 && next.battery == null) return;
+          if (k === 'pfa' && Array.isArray(v) && v.every(x => x == null)) return;
+          next[k] = v;
+        });
+        merged.set(key, next);
+      });
       records = [...merged.values()];
+      if (skipped) console.warn('Sync: ข้าม ' + skipped + ' แถวที่ผิดรูปจาก Sheets (ตรวจหัวคอลัมน์ในชีต Records)');
       localStorage.setItem('manikin_records', JSON.stringify(records));
       updateSyncStatus('ready', 'Synced ✓');
       renderDashboard(); renderRecords(); renderCal();
-      showToast('Sync สำเร็จ — Sheets ' + data.length + ' รายการ, รวมในเครื่อง ' + records.length + ' รายการ ✓', 'success');
+      showToast('Sync สำเร็จ — Sheets ' + data.length + ' แถว' + (skipped ? ' (ข้ามผิดรูป ' + skipped + ')' : '') + ', ในเครื่อง ' + records.length + ' รายการ ✓', skipped ? 'error' : 'success');
     } else throw new Error();
   } catch { updateSyncStatus('error', 'Sync failed'); showToast('Sync ไม่สำเร็จ', 'error'); }
 }
@@ -1281,7 +1293,7 @@ async function syncData() {
 async function apiSave(record) {
   if (!API_URL) return false;
   try {
-    const res = await fetch(API_URL, { method:'POST', body: JSON.stringify({action:'save', record}) });
+    const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({action:'save', record}) });
     const data = await res.json();
     return data.ok;
   } catch { return false; }
@@ -1290,7 +1302,7 @@ async function apiSave(record) {
 async function apiDelete(id) {
   if (!API_URL) return false;
   try {
-    const res = await fetch(API_URL, { method:'POST', body: JSON.stringify({action:'delete', id}) });
+    const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({action:'delete', id}) });
     const data = await res.json();
     return data.ok;
   } catch { return false; }
